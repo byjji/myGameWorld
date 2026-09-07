@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0e1524">
 <title>L-Party 컨트롤러</title>
+<!-- 아이콘. 없으면 favicon 404가 콘솔에 계속 쌓여 진짜 에러를 가린다.
+     경로는 사이트 루트 기준 — 배포본에서 / 는 tv 화면으로 rewrite 되므로 상대경로를 쓰면 어긋난다. -->
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon/lp-192.png">
+<link rel="apple-touch-icon" href="/assets/icon/lp-192.png">
+
 <!--
   폰 화면. 컨트롤러 전용이다.
   게임 화면을 절대 그리지 않는다. 그리면 조카가 TV 대신 폰을 본다 (PROJECT.md 1장).

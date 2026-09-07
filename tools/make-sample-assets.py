@@ -13,49 +13,23 @@
 
 쓰는 법은 `assets/README.md`. 매니페스트에서 sample 줄을 살리면 바로 보인다.
 
-외부 라이브러리를 쓰지 않는다 — PNG 인코더를 직접 넣었다.
+PNG 인코더는 tools/pngwrite.py에 있다. 외부 라이브러리를 쓰지 않는다 —
 견본 하나 만들자고 Pillow를 설치하게 만들 이유가 없다.
 """
 
 import os
-import struct
-import zlib
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pngwrite import write_png, blank, rect  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "assets", "sample")
 
 
-def write_png(path, w, h, pixels):
-    """pixels = [(r,g,b,a), ...] 길이 w*h. 위에서 아래, 왼쪽에서 오른쪽."""
-    raw = bytearray()
-    for y in range(h):
-        raw.append(0)                       # 필터 없음
-        row = y * w
-        for x in range(w):
-            raw += bytes(pixels[row + x])
-
-    def chunk(tag, data):
-        c = struct.pack(">I", len(data)) + tag + data
-        return c + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-
-    png = b"\x89PNG\r\n\x1a\n"
-    png += chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
-    png += chunk(b"IDAT", zlib.compress(bytes(raw), 9))
-    png += chunk(b"IEND", b"")
-
-    with open(path, "wb") as f:
-        f.write(png)
-    print("  %-28s %d×%d  %.1fKB" % (os.path.basename(path), w, h, len(png) / 1024))
-
-
-def blank(w, h, color=(0, 0, 0, 0)):
-    return [color] * (w * h)
-
-
-def rect(px, w, x0, y0, x1, y1, color):
-    for y in range(max(y0, 0), min(y1, len(px) // w)):
-        for x in range(max(x0, 0), min(x1, w)):
-            px[y * w + x] = color
+def save(name, w, h, px):
+    b = write_png(os.path.join(OUT, name), w, h, px)
+    print("  %-28s %d x %d  %.1fKB" % (name, w, h, b / 1024))
 
 
 def char_sheet():
@@ -86,7 +60,7 @@ def char_sheet():
         # 프레임 번호 표시. 어느 칸이 무엇인지 눈으로 세기 위한 것
         rect(px, W, ox + 4, 4, ox + 4 + 8 * (i + 1), 12, (255, 255, 255, 255))
 
-    write_png(os.path.join(OUT, "lhat.png"), W, H, px)
+    save("lhat.png", W, H, px)
 
 
 def bg_jumprope():
@@ -98,7 +72,7 @@ def bg_jumprope():
     rect(px, W, 0, ground, W, ground + 12, (61, 130, 53, 255))
     for x in range(120, W, 420):                                  # 구름
         rect(px, W, x, 90, x + 180, 150, (255, 255, 255, 255))
-    write_png(os.path.join(OUT, "jumprope.png"), W, H, px)
+    save("jumprope.png", W, H, px)
 
 
 def bg_ropeclimb():
@@ -113,7 +87,7 @@ def bg_ropeclimb():
         off = 0 if (y // 90) % 2 == 0 else 80
         for x in range(off, W, 160):
             rect(px, W, x, y, x + 6, y + 90, (35, 52, 88, 255))
-    write_png(os.path.join(OUT, "ropeclimb.png"), W, H, px)
+    save("ropeclimb.png", W, H, px)
 
 
 if __name__ == "__main__":
