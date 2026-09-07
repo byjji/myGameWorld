@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>L-Party</title>
+<!--
+  TV 화면. 입력을 받지 않는다. 폰이 컨트롤러다.
+
+  주소 옵션
+    ?dev=1        릴레이 서버 없이 같은 브라우저의 폰 탭과 붙는다 (개발용)
+    ?relay=wss:// 릴레이 주소 지정
+    ?game=debug   실행할 미니게임
+    ?fps=1        fps 오버레이
+-->
+<style>
+  html, body { margin:0; padding:0; background:#000; overflow:hidden; height:100%; }
+  /* 캔버스는 720p로 그리고 CSS로 확대한다 (PROJECT.md 2장) */
+  #cv { display:block; width:100vw; height:100vh; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<script src="../js/config.js?v=2"></script>
+<script src="../js/tuning.js?v=2"></script>
+<script src="../js/fps.js?v=2"></script>
+<script src="../js/loop.js?v=2"></script>
+<script src="../js/gfx.js?v=2"></script>
+<script src="../js/assets-manifest.js?v=2"></script>
+<script src="../js/assets.js?v=2"></script>
+<script src="../js/sfx.js?v=2"></script>
+<script src="../js/motion.js?v=2"></script>
+<script src="../js/net.js?v=2"></script>
+<script src="../js/devlink.js?v=2"></script>
+<script src="../js/chars.js?v=2"></script>
+<script src="../js/npc.js?v=2"></script>
+<script src="../js/board.js?v=2"></script>
+<script src="../js/tv.js?v=2"></script>
+<!-- 등록 순서가 곧 미니게임 목록 순서다. 판정 확인(debug)은 진단용이라 맨 뒤에 둔다. -->
+<script src="../js/games/jumprope.js?v=2"></script>
+<script src="../js/games/ropeclimb.js?v=2"></script>
+<script src="../js/games/hammer.js?v=2"></script>
+<script src="../js/games/blockbreak.js?v=2"></script>
+<script src="../js/games/debug.js?v=2"></script>
+<script>
+  LP.tv.start(document.getElementById('cv'));
+</script>
+</body>
+</html>

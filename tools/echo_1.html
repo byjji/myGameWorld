@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>L-Party 에코 시험</title>
+<!--
+  릴레이 연결 확인용 페이지 (phase2 검증 방법).
+
+  이 페이지가 있는 이유는 하나다. 게임을 다 만들고 나서 "TV에서 wss가 안 붙는다"를
+  발견하면 원인이 인증서인지 프록시인지 게임 코드인지 가릴 수 없다. 통신만 떼어 본다.
+
+    조카 집 TV 브라우저:  주소/echo            (role=tv, 방 코드가 크게 뜬다)
+    폰:                   주소/echo?role=play  (그 코드를 입력)
+
+  보는 것 세 가지
+    1. wss로 붙는가          — 상태줄
+    2. 메시지가 왕복하는가    — 로그와 왕복 카운터
+    3. 지연이 몇 ms인가       — RTT (목표 30~50ms, PROJECT.md 1장)
+
+  30분 연속 켜두고 끊김 횟수를 본다. 프록시 idle timeout이 짧으면 여기서 드러난다.
+  문법 수준: ES5 (TV 브라우저)
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #10141c; color: #e8edf5;
+               font-family: system-ui, -apple-system, sans-serif; }
+  /* 오버스캔 안전영역 5% (PROJECT.md 2장) */
+  #wrap { box-sizing: border-box; padding: 5%; height: 100%; display: flex; flex-direction: column; }
+  h1 { margin: 0 0 .4em; font-size: 1.1em; font-weight: 600; color: #8fa4c4; letter-spacing: .04em; }
+  #code { font-size: 14vmin; font-weight: 700; letter-spacing: .12em; line-height: 1.1; color: #ffd75e; }
+  #code small { display: block; font-size: .16em; letter-spacing: .1em; color: #8fa4c4; font-weight: 400; }
+  #stat { margin: .6em 0; font-size: 3.4vmin; }
+  .ok { color: #6ee7a8; } .bad { color: #ff7b72; } .warn { color: #ffd75e; }
+  #nums { display: flex; flex-wrap: wrap; gap: 1.2em; font-size: 3.2vmin; margin-bottom: .6em; }
+  #nums b { display: block; font-size: 1.5em; font-weight: 700; }
+  #nums span { color: #8fa4c4; font-size: .8em; }
+  #log { flex: 1; overflow: hidden; font-family: ui-monospace, Consolas, monospace;
+         font-size: 2.6vmin; line-height: 1.5; background: #0a0d13; border-radius: .4em; padding: .6em; }
+  #log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rx { color: #6ee7a8; } .tx { color: #7fb2ff; } .sys { color: #8fa4c4; }
+  #entry { display: none; }
+  #entry input { font-size: 8vmin; width: 5em; text-align: center; letter-spacing: .3em;
+                 border-radius: .2em; border: 2px solid #3a4a66; background: #0a0d13; color: #ffd75e; }
+  button { font-size: 4vmin; padding: .4em 1em; margin-top: .5em; border-radius: .3em;
+           border: 0; background: #2b6cb0; color: #fff; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1 id="title">에코 시험</h1>
+
+  <div id="code">----<small id="codehint">방 코드</small></div>
+
+  <div id="entry">
+    <input id="codein" inputmode="numeric" maxlength="4" placeholder="----">
+    <div><button id="go">접속</button></div>
+  </div>
+
+  <div id="stat">시작하는 중…</div>
+
+  <div id="nums">
+    <div><span>RTT 중앙값</span><b id="rttMed">-</b></div>
+    <div><span>RTT 최대</span><b id="rttMax">-</b></div>
+    <div><span>왕복</span><b id="rt">0</b></div>
+    <div><span>끊김</span><b id="drops">0</b></div>
+    <div><span>연결 유지</span><b id="up">0:00</b></div>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<script src="../js/tuning.js?v=2"></script>
+<script src="../js/net.js?v=2"></script>
+<script src="../js/devlink.js?v=2"></script>
+<script>
+(function (global) {
+  'use strict';
+  var LP = global.LP;
+
+  function qs(k, dflt) {
+    var m = global.location.search.match(new RegExp('[?&]' + k + '=([^&]*)'));
+    return m ? decodeURIComponent(m[1]) : dflt;
+  }
+  function $(id) { return document.getElementById(id); }
+
+  var role = qs('role', 'tv') === 'play' ? 'play' : 'tv';
+  var PING_MS = 1000;          // 게임보다 촘촘히 친다. 여기서는 지연 자체를 보는 것이 목적
+  var LOG_MAX = 14;
+
+  var st = {
+    net: null,
+    rtts: [],                  // 최근 왕복 시간(ms)
+    pend: {},                  // id -> 보낸 시각
+    seq: 0,
+    roundtrips: 0,
+    drops: 0,
+    openedAt: 0,
+    everOpen: false
+  };
+
+  function now() {
+    return (global.performance && global.performance.now) ? global.performance.now()
+                                                          : new Date().getTime();
+  }
+
+  function log(cls, text) {
+    var el = $('log');
+    var d = document.createElement('div');
+    d.className = cls;
+    var t = new Date();
+    d.textContent = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) +
+                    ':' + ('0' + t.getSeconds()).slice(-2) + '  ' + text;
+    el.insertBefore(d, el.firstChild);
+    while (el.childNodes.length > LOG_MAX) el.removeChild(el.lastChild);
+  }
+
+  function setStat(cls, text) {
+    var el = $('stat');
+    el.className = cls;
+    el.textContent = text;
+  }
+
+  function fmtUp(ms) {
+    var s = Math.floor(ms / 1000);
+    var m = Math.floor(s / 60);
+    return m + ':' + ('0' + (s % 60)).slice(-2);
+  }
+
+  /* 중앙값을 쓰는 이유: 평균은 한 번의 재접속 지연에 통째로 끌려간다.
+     30분 켜두고 보는 값이라 이상치에 둔감해야 한다. */
+  function median(a) {
+    if (!a.length) return null;
+    var b = a.slice().sort(function (x, y) { return x - y; });
+    return b[Math.floor(b.length / 2)];
+  }
+
+  function paintNums() {
+    var med = median(st.rtts);
+    $('rttMed').textContent = med === null ? '-' : med.toFixed(0) + 'ms';
+    $('rttMax').textContent = st.rtts.length ? Math.max.apply(null, st.rtts).toFixed(0) + 'ms' : '-';
+    $('rt').textContent = st.roundtrips;
+    $('drops').textContent = st.drops;
+    $('up').textContent = st.openedAt ? fmtUp(now() - st.openedAt) : '0:00';
+  }
+  setInterval(paintNums, 500);
+
+  function ping() {
+    if (!st.net || st.net.status !== 'open') return;
+    var id = 'e' + (++st.seq);
+    st.pend[id] = now();
+    st.net.send({ t: 'ping', id: id });
+  }
+
+  function onPong(m) {
+    var t0 = st.pend[m.id];
+    if (t0 === undefined) return;
+    delete st.pend[m.id];
+    var rtt = now() - t0;
+    st.rtts.push(rtt);
+    if (st.rtts.length > 120) st.rtts.shift();   // 최근 2분치만 본다
+    st.roundtrips++;
+  }
+
+  function connect(code) {
+    var useDev = LP.devlink && LP.devlink.enabled();
+    var url = qs('relay', LP.net.defaultUrl());
+
+    st.net = new LP.net.Net({
+      url: url,
+      role: role,
+      socketFactory: useDev ? LP.devlink.factory : undefined
+    });
+
+    log('sys', (useDev ? '[dev] ' : '') + url + '  role=' + role);
+
+    st.net.on('status', function (s) {
+      if (s.status === 'open') {
+        st.openedAt = now();
+        st.everOpen = true;
+        setStat('ok', '연결됨');
+      } else if (s.status === 'reconnecting') {
+        if (st.everOpen) st.drops++;
+        st.openedAt = 0;
+        setStat('bad', '끊김 — 다시 붙는 중 (' + (s.info ? s.info.wait + 'ms' : '') + ')');
+      } else if (s.status === 'connecting') {
+        setStat('warn', '붙는 중…');
+      } else {
+        setStat('bad', s.status);
+      }
+      log('sys', 'status: ' + s.status);
+    });
+
+    st.net.on('room', function (m) {
+      $('code').firstChild.nodeValue = m.code;
+      log('sys', '방 코드 ' + m.code);
+    });
+
+    st.net.on('open', function () {
+      if (role === 'tv') {
+        st.net.createRoom();
+      } else {
+        st.net.send({ t: 'hello' });
+        $('code').firstChild.nodeValue = st.net.code || '----';
+      }
+      ping();
+    });
+
+    st.net.on('err', function (m) {
+      setStat('bad', m.msg || '거부됨');
+      log('rx', 'err ' + (m.msg || ''));
+    });
+
+    st.net.on('pong', onPong);
+
+    // 상대가 보낸 것을 전부 찍는다. 왕복이 실제로 도는지 눈으로 보는 자리.
+    st.net.on('message', function (m) {
+      if (m.t === 'pong') return;
+      var extra = '';
+      if (m.from) extra += ' from=' + m.from;
+      if (m.n !== undefined) extra += ' n=' + m.n;
+      log('rx', '수신 ' + m.t + extra);
+
+      // 받은 쪽이 되받아친다. TV↔폰 왕복이 서버를 두 번 통과하는지 본다.
+      if (m.t === 'echo') {
+        st.net.send({ t: 'echoback', n: m.n });
+        log('tx', '송신 echoback n=' + m.n);
+      }
+    });
+
+    st.net.connect(code || null);
+    setInterval(ping, PING_MS);
+
+    // 상대에게 보내는 신호. TV는 state를, 폰은 echo를 쓴다 —
+    // 릴레이 방향(TV→전체 폰, 폰→TV)을 양쪽 다 태워보기 위함.
+    var n = 0;
+    setInterval(function () {
+      if (!st.net || st.net.status !== 'open') return;
+      n++;
+      if (role === 'tv') {
+        st.net.send({ t: 'echo', n: n });
+        log('tx', '송신 echo n=' + n);
+      } else {
+        st.net.send({ t: 'motion', a: 'jump', p: 0.5, n: n });
+        log('tx', '송신 motion n=' + n);
+      }
+    }, 3000);
+  }
+
+  /* 폰은 코드를 받아야 붙는다. TV는 서버가 발급한다. */
+  if (role === 'play') {
+    $('title').textContent = '에코 시험 — 폰';
+    $('codehint').textContent = '접속한 방';
+    var pre = qs('code', '');
+    if (/^[234589]{4}$/.test(pre)) {
+      connect(pre);
+    } else {
+      $('entry').style.display = 'block';
+      setStat('warn', 'TV 화면의 4자리를 입력하세요');
+      $('go').onclick = function () {
+        var v = $('codein').value.replace(/[^0-9]/g, '');
+        if (v.length !== 4) return;
+        $('entry').style.display = 'none';
+        connect(v);
+      };
+      $('codein').oninput = function () {
+        if (this.value.length === 4) $('go').onclick();
+      };
+    }
+  } else {
+    $('title').textContent = '에코 시험 — TV';
+    connect(null);
+  }
+})(window);
+</script>
+</body>
+</html>

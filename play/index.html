@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0e1524">
+<title>L-Party 컨트롤러</title>
+<!--
+  폰 화면. 컨트롤러 전용이다.
+  게임 화면을 절대 그리지 않는다. 그리면 조카가 TV 대신 폰을 본다 (PROJECT.md 1장).
+
+  다섯 화면을 단일 페이지 + 상태 머신으로 처리한다. 라우팅 없음.
+  TV가 WebSocket으로 현재 단계를 알려주면 여기서 UI를 바꾼다.
+
+  주소 옵션
+    ?dev=1     릴레이 서버 없이 같은 브라우저의 TV 탭과 붙는다 (개발용)
+    ?debug=1   센서 파형 오버레이
+-->
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:#0e1524; color:#fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    user-select:none; -webkit-user-select:none;
+    touch-action: manipulation;
+  }
+  .screen { display:none; position:absolute; inset:0; padding:16px; }
+  .screen.on { display:flex; flex-direction:column; }
+
+  /* 코드 입력 — 키패드를 화면 가득, 버튼 하나 최소 80px */
+  #code-view { font-size:64px; letter-spacing:16px; text-align:center; padding:12px 0 4px;
+               min-height:86px; color:#ffd23b; font-weight:700; }
+  #keypad { flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .key { min-height:80px; border-radius:16px; background:#243047; color:#fff;
+         font-size:40px; font-weight:700; display:flex; align-items:center; justify-content:center;
+         border:none; }
+  .key:active { background:#3a4c6e; }
+  .key.wide { grid-column: span 1; font-size:28px; background:#1a2336; }
+
+  @keyframes shake {
+    0%,100% { transform:translateX(0); }
+    20% { transform:translateX(-14px); }
+    40% { transform:translateX(14px); }
+    60% { transform:translateX(-9px); }
+    80% { transform:translateX(9px); }
+  }
+  .shake { animation: shake .35s; }
+
+  /* 캐릭터 선택 */
+  #chars { flex:1; display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .chip { border-radius:18px; display:flex; flex-direction:column; align-items:center;
+          justify-content:center; font-size:26px; font-weight:700; border:4px solid transparent; }
+  .chip.sel { border-color:#ffd23b; }
+  .chip .dot { width:54px; height:54px; border-radius:50%; margin-bottom:8px; }
+
+  .big-btn { min-height:96px; border-radius:20px; border:none; font-size:36px; font-weight:700;
+             background:#3bff7a; color:#06210f; margin-top:12px; }
+  .big-btn[disabled] { background:#26314a; color:#5a6b85; }
+
+  /* 컨트롤러 — 색 하나와 큰 아이콘 하나만. 점수도 캐릭터도 그리지 않는다 */
+  #ctrl { align-items:center; justify-content:center; background:#1b2b52; padding:0; }
+  #ctrl-icon { font-size:38vw; line-height:1; }
+  #ctrl-label { font-size:7vw; opacity:.55; margin-top:2vh; }
+
+  /* 인식 피드백 — 화면 전체 번쩍 */
+  #flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
+           transition:opacity .12s linear; }
+  #flash.on { opacity:.85; transition:none; }
+
+  /* 안내 문구 */
+  .title { font-size:30px; font-weight:700; text-align:center; margin:8px 0 4px; }
+  .sub { font-size:20px; text-align:center; color:#8ea2c0; margin-bottom:10px; }
+
+  /* 연결 끊김은 크게 */
+  #offline { position:absolute; inset:0; background:rgba(150,15,15,.96); display:none;
+             align-items:center; justify-content:center; flex-direction:column; z-index:20; }
+  #offline.on { display:flex; }
+  #offline .t { font-size:44px; font-weight:700; text-align:center; }
+  #offline .s { font-size:22px; margin-top:12px; opacity:.85; }
+  /* 어른용 안내. 작게, 아래에. 조카의 시야를 가리지 않는다 */
+  #wake-warn { position:absolute; left:0; right:0; bottom:0; display:none;
+               font-size:15px; text-align:center; padding:6px 0;
+               background:rgba(0,0,0,.45); color:#c9d4e6; }
+  #wake-warn.on { display:block; }
+  #tune-warn { position:absolute; left:0; right:0; top:0; display:none;
+               font-size:14px; text-align:center; padding:5px 0;
+               background:#3a2f00; color:#ffd23b; font-family:monospace; }
+  #tune-warn.on { display:block; }
+  #tune-warn.bad { background:#3a1010; color:#ff7b72; }
+
+  /* 캘리브레이션 */
+  #calib-bar { height:26px; background:#26314a; border-radius:13px; overflow:hidden; margin-top:16px; }
+  #calib-fill { height:100%; width:0; background:#3bff7a; }
+
+  /* 센서 파형 (?debug=1) */
+  #wave { position:absolute; left:0; bottom:0; width:100%; height:150px; display:none; z-index:15;
+          background:rgba(0,0,0,.6); }
+  #wave.on { display:block; }
+</style>
+</head>
+<body>
+
+<!-- 1. 코드 입력 -->
+<div class="screen on" id="s-code">
+  <div class="title">방 코드</div>
+  <div class="sub">TV에 뜬 숫자 4개</div>
+  <div id="code-view">····</div>
+  <div id="keypad"></div>
+</div>
+
+<!-- 2. 캐릭터 선택 -->
+<div class="screen" id="s-char">
+  <div class="title">누구로 할까?</div>
+  <div id="chars"></div>
+  <button class="big-btn" id="ready-btn" disabled>준비 완료</button>
+</div>
+
+<!-- 3. 준비 완료 / 대기 -->
+<div class="screen" id="s-wait">
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column">
+    <div class="title" id="wait-title">TV를 보세요</div>
+    <div class="sub" id="wait-sub"></div>
+  </div>
+</div>
+
+<!-- 4. 캘리브레이션 -->
+<div class="screen" id="s-calib">
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;width:100%">
+    <div class="title" style="font-size:38px">폰을 가슴에 대고<br>똑바로 서세요</div>
+    <div style="width:80%"><div id="calib-bar"><div id="calib-fill"></div></div></div>
+    <div class="sub" id="calib-msg" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- 5. 컨트롤러 -->
+<div class="screen" id="s-ctrl">
+  <div id="ctrl" class="screen on">
+    <div id="ctrl-icon">↑</div>
+    <div id="ctrl-label">TV를 보세요</div>
+  </div>
+</div>
+
+<div id="flash"></div>
+<canvas id="wave" width="360" height="150"></canvas>
+
+<div id="offline">
+  <div class="t">연결이 끊겼습니다</div>
+  <div class="s" id="offline-sub">다시 연결하는 중…</div>
+</div>
+
+<!-- Wake Lock 미지원 폰에서만 뜬다. 조카가 아니라 어른에게 하는 말이다. -->
+<div id="wake-warn">화면이 꺼지면 다시 켜주세요</div>
+
+<!-- ?tune= 으로 임계값을 덮어썼을 때만 뜬다. 켜둔 걸 잊지 않게. -->
+<div id="tune-warn"></div>
+
+<script src="../js/config.js?v=2"></script>
+<script src="../js/tuning.js?v=2"></script>
+<script src="../js/motion.js?v=2"></script>
+<script src="../js/calib.js?v=2"></script>
+<script src="../js/net.js?v=2"></script>
+<script src="../js/devlink.js?v=2"></script>
+<script src="../js/devsensor.js?v=2"></script>
+<script src="../js/chars.js?v=2"></script>
+<script src="../js/play.js?v=2"></script>
+<script>
+  LP.play.start();
+</script>
+</body>
+</html>

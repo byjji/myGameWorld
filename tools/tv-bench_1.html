@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>L-Party TV Bench 1</title>
+<!--
+  조카 집 TV에서 phase1 렌더링 예산 전제를 확인하는 검사 페이지.
+
+  전제: 30fps 안정 유지는 가능한 것으로 판단하고 진행한다.
+        이 페이지는 그 전제가 맞는지 한 번 확인하는 용도이며, 결과가 없어도 개발은 진행한다.
+
+  조작: 리모컨 좌우 = 항목 이동, 상하 = 개수 조절, 확인/0 = 계측 초기화
+        숫자키 1~8 = 항목 직접 선택
+
+  TV 브라우저는 캐시가 강하다. 내용을 고치면 tv-bench_2.html 로 새로 올린다.
+-->
+<style>
+  html, body { margin:0; padding:0; background:#000; overflow:hidden; height:100%; }
+  #cv { display:block; width:100vw; height:100vh; }
+  #diag {
+    /* 폭을 좁게 잡는다. 우측 상단은 fps 오버레이 자리라 겹치면 둘 다 안 읽힌다. */
+    position:absolute; left:5%; top:5%; width:64%; height:90%;
+    color:#fff; font:20px/1.5 monospace; white-space:pre-wrap; word-break:break-all;
+    display:none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv" width="1280" height="720"></canvas>
+<div id="diag"></div>
+
+<script src="../js/config.js?v=2"></script>
+<script src="../js/fps.js?v=2"></script>
+
+<!-- ES6 파싱 검사. 이 스크립트가 파싱되지 않으면 플래그가 false로 남는다. -->
+<script>window.ES6_OK = false;</script>
+<script>
+  const es6probe = (n = 1) => n + '';
+  class Es6Probe { constructor() { this.ok = true; } }
+  window.ES6_OK = (es6probe() === '1') && new Es6Probe().ok;
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  var C = LP.config;
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var diag = document.getElementById('diag');
+
+  // 벤치에서는 쿼리스트링과 무관하게 항상 켠다.
+  LP.fps.init(ctx, true);
+
+  /* 검사용 스프라이트를 코드로 생성 (아직 에셋이 없다) */
+
+  function makeSprite(size, color) {
+    var c = document.createElement('canvas');
+    c.width = c.height = size;
+    var g = c.getContext('2d');
+    g.fillStyle = color;
+    g.fillRect(0, 0, size, size);
+    g.fillStyle = '#ffffff';
+    g.fillRect(size * 0.2, size * 0.2, size * 0.6, size * 0.15);
+    g.fillStyle = '#000000';
+    g.beginPath();
+    g.arc(size * 0.5, size * 0.62, size * 0.2, 0, Math.PI * 2);
+    g.fill();
+    return c;
+  }
+
+  var sprite = makeSprite(64, '#e34b4b');
+  var spriteBig = makeSprite(256, '#4b7be3');
+
+  // 오프스크린 프리렌더 비교용. 스프라이트 16장을 한 장에 미리 합쳐둔다.
+  var preRendered = (function () {
+    var c = document.createElement('canvas');
+    c.width = 256; c.height = 256;
+    var g = c.getContext('2d');
+    for (var i = 0; i < 16; i++) {
+      g.drawImage(sprite, (i % 4) * 64, Math.floor(i / 4) * 64);
+    }
+    return c;
+  })();
+
+  /* 항목 정의 */
+
+  var COUNTS = [10, 50, 100, 150, 200, 400, 800];
+  var countIdx = 2;
+
+  var scenes = [
+    { name: '1. 진단 정보', fn: sceneDiag },
+    { name: '2. 스프라이트 (원본 크기)', fn: scenePlain },
+    { name: '3. 스프라이트 (스케일)', fn: sceneScaled },
+    { name: '4. 스프라이트 (알파)', fn: sceneAlpha },
+    { name: '5. shadowBlur 검사', fn: sceneShadow },
+    { name: '6. 스크롤 배경 타일', fn: sceneScroll },
+    { name: '7. 오프스크린 blit 비교', fn: scenePreRender },
+    { name: '8. 오버스캔 패턴', fn: sceneOverscan }
+  ];
+  var sceneIdx = 0;
+
+  /* 항목별 렌더 */
+
+  var t = 0;
+
+  function positions(n, i) {
+    // 화면 전체에 고르게 흩뿌리되 매 프레임 조금씩 움직인다.
+    var cols = Math.ceil(Math.sqrt(n));
+    var x = (i % cols) / cols * (C.WIDTH - 64);
+    var y = Math.floor(i / cols) / cols * (C.HEIGHT - 64);
+    return { x: x + Math.sin(t + i) * 8, y: y + Math.cos(t + i) * 8 };
+  }
+
+  function sceneDiag() {
+    ctx.fillStyle = '#101018';
+    ctx.fillRect(0, 0, C.WIDTH, C.HEIGHT);
+    // 실제 텍스트는 DOM(#diag)에 그린다. TV에서 canvas 폰트보다 읽기 쉽다.
+  }
+
+  function scenePlain() {
+    var n = COUNTS[countIdx];
+    for (var i = 0; i < n; i++) {
+      var p = positions(n, i);
+      ctx.drawImage(sprite, p.x, p.y);
+    }
+  }
+
+  function sceneScaled() {
+    var n = COUNTS[countIdx];
+    for (var i = 0; i < n; i++) {
+      var p = positions(n, i);
+      var s = 32 + (Math.sin(t + i * 0.3) + 1) * 24; // 원근 스케일링 흉내
+      ctx.drawImage(sprite, 0, 0, 64, 64, p.x, p.y, s, s);
+    }
+  }
+
+  function sceneAlpha() {
+    var n = COUNTS[countIdx];
+    ctx.globalAlpha = 0.5;
+    for (var i = 0; i < n; i++) {
+      var p = positions(n, i);
+      ctx.drawImage(sprite, p.x, p.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function sceneShadow() {
+    // 금지 항목의 실제 비용을 확인하는 항목. 여기서만 예외로 켠다.
+    var n = Math.min(COUNTS[countIdx], 200);
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 12;
+    for (var i = 0; i < n; i++) {
+      var p = positions(n, i);
+      ctx.drawImage(sprite, p.x, p.y);
+    }
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+  }
+
+  function sceneScroll() {
+    // 세로 스크롤 배경 타일 반복 + 캐릭터 몇 장. 로프 클라이밍의 최소 형태.
+    var off = (t * 60) % 256;
+    for (var y = -256; y < C.HEIGHT + 256; y += 256) {
+      for (var x = 0; x < C.WIDTH; x += 256) {
+        ctx.drawImage(spriteBig, x, y + off);
+      }
+    }
+    for (var i = 0; i < 4; i++) {
+      ctx.drawImage(sprite, 160 + i * 280, C.HEIGHT * 0.6);
+    }
+  }
+
+  function scenePreRender() {
+    // 같은 16장을 왼쪽은 개별 drawImage, 오른쪽은 프리렌더 1장 blit 으로 비교한다.
+    var n = Math.floor(COUNTS[countIdx] / 16);
+    var i, j;
+    for (i = 0; i < n; i++) {
+      var bx = (i % 5) * 128;
+      var by = Math.floor(i / 5) * 128;
+      for (j = 0; j < 16; j++) {
+        ctx.drawImage(sprite, bx + (j % 4) * 16, by + Math.floor(j / 4) * 16, 16, 16);
+      }
+    }
+    for (i = 0; i < n; i++) {
+      var px = 700 + (i % 5) * 128;
+      var py = Math.floor(i / 5) * 128;
+      ctx.drawImage(preRendered, px, py, 64, 64);
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = '22px monospace';
+    ctx.fillText('개별 ' + (n * 16) + '회', 40, C.HEIGHT - 60);
+    ctx.fillText('blit ' + n + '회', 700, C.HEIGHT - 60);
+  }
+
+  function sceneOverscan() {
+    // 가장자리에서 몇 퍼센트가 잘리는지 눈으로 재는 패턴.
+    ctx.fillStyle = '#003300';
+    ctx.fillRect(0, 0, C.WIDTH, C.HEIGHT);
+
+    var marks = [0.025, 0.05, 0.075, 0.10];
+    var colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff'];
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 24px monospace';
+
+    for (var i = 0; i < marks.length; i++) {
+      var mx = C.WIDTH * marks[i];
+      var my = C.HEIGHT * marks[i];
+      ctx.strokeStyle = colors[i];
+      ctx.strokeRect(mx, my, C.WIDTH - mx * 2, C.HEIGHT - my * 2);
+      ctx.fillStyle = colors[i];
+      ctx.fillText((marks[i] * 100) + '%', mx + 8, my + 28);
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 30px monospace';
+    ctx.fillText('보이는 가장 바깥 선의 값이 잘린 양', 330, 380);
+  }
+
+  /* 진단 정보 */
+
+  function webglInfo() {
+    try {
+      var c = document.createElement('canvas');
+      var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+      return gl ? '획득 가능' : '없음';
+    } catch (e) {
+      return '오류: ' + e.message;
+    }
+  }
+
+  function buildDiag() {
+    var lines = [
+      'L-Party TV Bench 1',
+      '',
+      'userAgent       : ' + navigator.userAgent,
+      'screen          : ' + screen.width + ' x ' + screen.height,
+      'window          : ' + window.innerWidth + ' x ' + window.innerHeight,
+      'devicePixelRatio: ' + window.devicePixelRatio,
+      'canvas 내부      : ' + cv.width + ' x ' + cv.height,
+      'WebGL           : ' + webglInfo(),
+      'ES6 파싱         : ' + (window.ES6_OK ? '가능' : '실패. ES5로 유지할 것'),
+      'ES module       : ' + (('noModule' in HTMLScriptElement.prototype) ? '지원' : '미지원'),
+      'Wake Lock       : ' + (('wakeLock' in navigator) ? '지원' : '미지원'),
+      'vibrate         : ' + (('vibrate' in navigator) ? '지원' : '미지원'),
+      'devicemotion    : ' + (('ondevicemotion' in window) ? '있음' : '없음'),
+      '',
+      '좌우 = 항목   상하 = 개수',
+      '확인/0 = 초기화   1~8 = 항목 선택'
+    ];
+    diag.textContent = lines.join('\n');
+  }
+
+  /* 루프 */
+
+  var last = 0;
+
+  function frame(ts) {
+    var dt = last ? Math.min((ts - last) / 1000, C.MAX_DELTA) : 0;
+    last = ts;
+    t += dt;
+
+    LP.fps.frameStart();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, C.WIDTH, C.HEIGHT);
+
+    scenes[sceneIdx].fn();
+
+    // 항목 이름과 개수는 항상 표시
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(C.SAFE.x, C.HEIGHT - C.SAFE.y - 56, 620, 48);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 28px monospace';
+    ctx.fillText(scenes[sceneIdx].name + '   n=' + COUNTS[countIdx],
+                 C.SAFE.x + 12, C.HEIGHT - C.SAFE.y - 20);
+
+    LP.fps.frameEnd();
+    LP.fps.draw(ctx);
+
+    requestAnimationFrame(frame);
+  }
+
+  /* 입력 (리모컨) */
+
+  function setScene(i) {
+    sceneIdx = (i + scenes.length) % scenes.length;
+    diag.style.display = (sceneIdx === 0) ? 'block' : 'none';
+    LP.fps.reset();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.keyCode;
+    if (k === 37) setScene(sceneIdx - 1);          // 왼쪽
+    else if (k === 39) setScene(sceneIdx + 1);     // 오른쪽
+    else if (k === 38) {                           // 위
+      countIdx = Math.min(countIdx + 1, COUNTS.length - 1);
+      LP.fps.reset();
+    } else if (k === 40) {                         // 아래
+      countIdx = Math.max(countIdx - 1, 0);
+      LP.fps.reset();
+    } else if (k === 13 || k === 48) {             // 확인 / 0
+      LP.fps.reset();
+    } else if (k >= 49 && k <= 56) {               // 1~8
+      setScene(k - 49);
+    }
+  });
+
+  // 리모컨 키가 안 먹는 TV 대비. 화면 클릭으로도 항목이 넘어간다.
+  cv.addEventListener('click', function () { setScene(sceneIdx + 1); });
+
+  buildDiag();
+  setScene(0);
+  requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>

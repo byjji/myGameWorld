@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir -p:*)",
+      "Bash(node --check:*)",
+      "Bash(node test/:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(python -m http.server:*)",
+      "Bash(curl -s http://127.0.0.1:*)"
+    ]
+  }
+}
