@@ -45,7 +45,7 @@
     // TV가 new 로 붙으면 코드를 만들어 준다. 서버가 하던 일.
     if (this.role === 'tv' && this.code === 'new') this.code = makeCode();
 
-    this.ch = new global.BroadcastChannel('lparty-dev-' + this.code);
+    this.ch = new global.BroadcastChannel('mygameworld-dev-' + this.code);
     this.ch.onmessage = function (ev) {
       // 자기가 보낸 것은 되돌려받지 않는다.
       if (ev.data && ev.data.__from === self.role) return;

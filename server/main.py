@@ -37,7 +37,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rooms import Hub  # noqa: E402
 
-log = logging.getLogger("lparty")
+log = logging.getLogger("mygameworld")
 
 # 방 정리 주기(초). 타임아웃 자체는 rooms.py가 정한다.
 SWEEP_SEC = 10.0

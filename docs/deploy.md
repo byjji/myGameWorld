@@ -30,7 +30,7 @@ Container Manager → 프로젝트 → 생성 → 위 폴더를 지정하고 `do
 SSH가 편하면 그냥:
 
 ```sh
-cd /volume1/docker/lparty
+cd /volume1/docker/mygameworld
 docker compose up -d --build
 docker compose logs -f relay
 ```

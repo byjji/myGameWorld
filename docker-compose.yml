@@ -8,8 +8,8 @@
 services:
   relay:
     build: ./server
-    image: lparty-relay:latest
-    container_name: lparty-relay
+    image: mygameworld-relay:latest
+    container_name: mygameworld-relay
 
     # NAS 재부팅 후 자동 기동. `always`가 아니라 `unless-stopped`인 이유는
     # 사람이 일부러 멈춰둔 컨테이너를 재부팅이 되살리지 않게 하기 위함.

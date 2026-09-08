@@ -3,7 +3,7 @@
  * 브라우저 없이 돌린다 — 임계값 튜닝에 쓰는 판이다.
  */
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const ROOT = 'D:/Development/marioWorld';
+const ROOT = path.resolve(__dirname, '..');
 
 const win = { performance: { now: () => 0 } };
 win.window = win;
