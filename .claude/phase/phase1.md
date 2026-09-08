@@ -47,7 +47,7 @@
 - [x] 프레임당 `drawImage` 호출 수 카운터
 - [x] 예산 초과 시 콘솔이 아니라 **화면에 경고** (TV 브라우저는 개발자도구가 없다)
 - [x] 이 계측을 phase3 게임 루프에 처음부터 심는다 — 나중에 붙이면 안 붙인다
-      *`js/loop.js`가 `LP.fps.init/frameStart/frameEnd/draw`를 프레임마다 호출한다. 게임 코드는 관여하지 않는다*
+      *`js/loop.js`가 `GP.fps.init/frameStart/frameEnd/draw`를 프레임마다 호출한다. 게임 코드는 관여하지 않는다*
 
 ### 선택 작업
 

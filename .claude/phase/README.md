@@ -1,4 +1,4 @@
-# L-Party 개발 단계
+# Game-Party 개발 단계
 
 `PROJECT.md` 9장(개발 순서)을 실행 가능한 단위로 쪼갠 문서. 각 파일은 독립 작업 단위이며 앞 단계의 완료 기준이 충족돼야 다음으로 넘어간다.
 
@@ -43,7 +43,7 @@ phase3을 phase2보다 먼저 만든 이유는 릴레이 서버를 기다리면 
 
 **phase9를 phase8보다 먼저 했다.** 사용자 지시 — "나머지를 다 만들어 전체를 완성한 뒤
 레이싱을 추가한다". 세션 구조(룰렛·보드·총점)는 게임 레지스트리 위에 얹혀 있어서
-레이싱이 나중에 들어와도 `LP.games.register`만 하면 자동으로 낀다.
+레이싱이 나중에 들어와도 `GP.games.register`만 하면 자동으로 낀다.
 레이싱에 필요한 것은 `load`·`color`·`par` 세 값과 인터페이스 구현뿐이다.
 
 ## 지금 돌려볼 수 있는 것
@@ -54,7 +54,7 @@ node   test/motion-test.js    동작 판정
 node   test/net-test.js       통신·보정
 node   test/games-test.js     미니게임 4종 + NPC + 룰렛 + 보드 + 안정화 (176항목)
 
-LP_STATIC=. python server/main.py
+GP_STATIC=. python server/main.py
   → http://127.0.0.1:8000/dev/pair.html                     TV와 폰을 한 탭에 (?dev=1)
   → http://127.0.0.1:8000/tv/index.html?fps=1&game=hammer   게임 하나만 반복
 ```

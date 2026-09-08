@@ -18,8 +18,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP;
-  var C = LP.config;
+  var GP = global.GP;
+  var C = GP.config;
 
   /* ── 튜닝 값 ────────────────────────────────────────── */
   var TUNE = {
@@ -101,7 +101,7 @@
   }
 
   function buildArt() {
-    LP.gfx.sheet('hm-hammer', 2, 70, 90, function (c2, i) {
+    GP.gfx.sheet('hm-hammer', 2, 70, 90, function (c2, i) {
       c2.save();
       c2.translate(35, 45);
       c2.rotate(i ? 0.4 : -0.4);
@@ -112,7 +112,7 @@
       c2.restore();
     });
 
-    LP.gfx.sheet('hm-coin', 4, 40, 40, function (c2, i) {
+    GP.gfx.sheet('hm-coin', 4, 40, 40, function (c2, i) {
       var w = 40 * (1 - i * 0.22);
       c2.fillStyle = '#ffd23b';
       c2.beginPath();
@@ -123,7 +123,7 @@
 
   /* ── 게임 ─────────────────────────────────────────── */
 
-  var def = LP.games.register('hammer', {
+  var def = GP.games.register('hammer', {
     name: '해머 피하기',
     motion: 'tilt',
     load: 'mid',           // 좌우 스텝. 줄넘기·로프 사이에 끼우기 좋다
@@ -148,8 +148,8 @@
       var lane = Math.floor(tt / 1.1) % TUNE.LANES;
       ctx.fillStyle = '#3a2a52';
       ctx.fillRect(0, GROUND_Y, C.WIDTH, C.HEIGHT - GROUND_Y);
-      LP.chars.draw(ctx, chr, laneX(lane), GROUND_Y, 300, 'idle');
-      LP.gfx.blit(ctx, 'hm-hammer', Math.floor(tt * 6) % 2,
+      GP.chars.draw(ctx, chr, laneX(lane), GROUND_Y, 300, 'idle');
+      GP.gfx.blit(ctx, 'hm-hammer', Math.floor(tt * 6) % 2,
                   laneX((lane + 1) % TUNE.LANES), C.HEIGHT * 0.35, 1.4);
     },
 
@@ -220,12 +220,12 @@
      */
     onTilt: function (m) {
       var s = state(pid(m));
-      var deg = (m.v || 0) * LP.tuning.TILT_RANGE_DEG;
+      var deg = (m.v || 0) * GP.tuning.TILT_RANGE_DEG;
       s.lastDeg = deg;
 
-      if (deg <= -LP.tuning.TILT_LANE_DEG) s.lane = 0;
-      else if (deg >= LP.tuning.TILT_LANE_DEG) s.lane = TUNE.LANES - 1;
-      else if (Math.abs(deg) < LP.tuning.TILT_RELEASE_DEG) s.lane = 1;
+      if (deg <= -GP.tuning.TILT_LANE_DEG) s.lane = 0;
+      else if (deg >= GP.tuning.TILT_LANE_DEG) s.lane = TUNE.LANES - 1;
+      else if (Math.abs(deg) < GP.tuning.TILT_RELEASE_DEG) s.lane = 1;
       // 그 사이(RELEASE ~ LANE)에서는 지금 레인을 유지한다. 이게 히스테리시스다.
     },
 
@@ -243,7 +243,7 @@
       var S = C.SAFE;
       var i, j;
 
-      if (!LP.assets || !LP.assets.bg(ctx, 'hammer', C.WIDTH, C.HEIGHT)) {
+      if (!GP.assets || !GP.assets.bg(ctx, 'hammer', C.WIDTH, C.HEIGHT)) {
         ctx.fillStyle = '#241a38';
         ctx.fillRect(0, 0, C.WIDTH, C.HEIGHT);
         ctx.fillStyle = '#3a2a52';
@@ -276,7 +276,7 @@
         if (wv.done) continue;
         var k = 1 - (wv.at - t) / TUNE.WARN_SEC;       // 0 = 방금 던짐, 1 = 착탄
         for (j = 0; j < wv.lanes.length; j++) {
-          LP.gfx.blit(ctx, 'hm-hammer', Math.floor(t * 12) % 2,
+          GP.gfx.blit(ctx, 'hm-hammer', Math.floor(t * 12) % 2,
                       laneX(wv.lanes[j]), -40 + (GROUND_Y + 40) * k, 1.3);
         }
       }
@@ -284,7 +284,7 @@
       // 코인
       for (i = 0; i < coins.length; i++) {
         if (coins[i].taken) continue;
-        LP.gfx.blit(ctx, 'hm-coin', Math.floor(t * 8), laneX(coins[i].lane), GROUND_Y - 150, 1);
+        GP.gfx.blit(ctx, 'hm-coin', Math.floor(t * 8), laneX(coins[i].lane), GROUND_Y - 150, 1);
       }
 
       // 캐릭터. 여럿이 같은 레인에 있으면 겹쳐서 하나로 보인다 — 좌우로 조금 벌린다.
@@ -294,7 +294,7 @@
         var s = state(players[i].id);
         var stunned = t < s.stunUntil;
         var px = (s.x === null ? laneX(s.lane) : s.x) + (i - (players.length - 1) / 2) * spread;
-        LP.chars.draw(ctx, players[i]['char'], px, GROUND_Y,
+        GP.chars.draw(ctx, players[i]['char'], px, GROUND_Y,
                       players.length > 2 ? 180 : 210, stunned ? 'squat' : 'idle');
       }
 
@@ -315,7 +315,7 @@
     for (var i = 0; i < players.length && i < 4; i++) {
       var ps = state(players[i].id);
       if (!ps.coins) continue;
-      var c = LP.chars.byId[players[i]['char']];
+      var c = GP.chars.byId[players[i]['char']];
       ctx.fillStyle = (c && c.cap) || '#ffd23b';
       ctx.fillText('◆ ' + ps.coins, S.x + i * 110, S.y + 92);
     }

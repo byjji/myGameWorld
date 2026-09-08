@@ -1,15 +1,15 @@
 /**
- * L-Party fps 오버레이 + 그리기 예산 계측
+ * Game-Party fps 오버레이 + 그리기 예산 계측
  *
  * TV 내장 브라우저에는 개발자도구가 없다. console.log는 볼 수 없다.
  * 따라서 모든 진단은 화면에 그린다.
  *
  * 사용법:
- *   LP.fps.init(ctx);              // 게임 루프 시작 전 1회. ctx의 drawImage/fillText를 감싼다
- *   LP.fps.frameStart();           // 매 프레임 맨 앞
+ *   GP.fps.init(ctx);              // 게임 루프 시작 전 1회. ctx의 drawImage/fillText를 감싼다
+ *   GP.fps.frameStart();           // 매 프레임 맨 앞
  *   ... 게임 update / render ...
- *   LP.fps.frameEnd();             // 렌더 직후
- *   LP.fps.draw(ctx);              // 오버레이를 맨 위에 그린다
+ *   GP.fps.frameEnd();             // 렌더 직후
+ *   GP.fps.draw(ctx);              // 오버레이를 맨 위에 그린다
  *
  * 켜는 방법: 주소 뒤에 ?fps=1
  * 꺼져 있으면 계측도 래핑도 하지 않는다. 평상시 부하 0.
@@ -19,8 +19,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var C = LP.config;
+  var GP = global.GP || (global.GP = {});
+  var C = GP.config;
 
   // ?fps=1 판정. URLSearchParams는 구형 webOS에 없을 수 있어 직접 파싱한다.
   function queryOn(key) {
@@ -204,6 +204,6 @@
     fps._warm = WARMUP_FRAMES;
   };
 
-  LP.fps = fps;
+  GP.fps = fps;
 
 })(window);

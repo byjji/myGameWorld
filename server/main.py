@@ -1,5 +1,5 @@
 """
-L-Party 릴레이 서버 (FastAPI)
+Game-Party 릴레이 서버 (FastAPI)
 
   WS  /ws/{code}?role=tv|play    방 접속. code가 `new`면 TV가 새 방을 연다
   GET /healthz                   헬스체크
@@ -18,9 +18,9 @@ TV 프레임이 밀리면 게임이 무너진다. 송신은 Outbox(rooms.py)가 
   uvicorn main:app --host 0.0.0.0 --port 8000    컨테이너
 
 환경변수:
-  LP_PORT     기본 8000
-  LP_HOST     기본 0.0.0.0
-  LP_STATIC   지정하면 그 디렉터리를 정적 서빙한다. 개발·비상용.
+  GP_PORT     기본 8000
+  GP_HOST     기본 0.0.0.0
+  GP_STATIC   지정하면 그 디렉터리를 정적 서빙한다. 개발·비상용.
               평시에는 비워둔다 — 정적 파일은 Netlify 몫이다 (PROJECT.md 1장).
 """
 
@@ -93,7 +93,7 @@ async def _lifespan(app):
         task.cancel()
 
 
-app = FastAPI(title="L-Party relay", lifespan=_lifespan)
+app = FastAPI(title="Game-Party relay", lifespan=_lifespan)
 
 
 @app.get("/healthz")
@@ -106,7 +106,7 @@ def healthz():
 
 @app.get("/")
 def root():
-    return PlainTextResponse("L-Party relay. 화면은 Netlify에 있다. WS: /ws/{code}?role=tv|play\n")
+    return PlainTextResponse("Game-Party relay. 화면은 Netlify에 있다. WS: /ws/{code}?role=tv|play\n")
 
 
 @app.websocket("/ws/{code}")
@@ -170,7 +170,7 @@ async def _writer(ws, conn):
 
 
 def _mount_static():
-    path = os.environ.get("LP_STATIC")
+    path = os.environ.get("GP_STATIC")
     if not path:
         return
     from fastapi.staticfiles import StaticFiles
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     uvicorn.run(
         app,
-        host=os.environ.get("LP_HOST", "0.0.0.0"),
-        port=int(os.environ.get("LP_PORT", "8000")),
+        host=os.environ.get("GP_HOST", "0.0.0.0"),
+        port=int(os.environ.get("GP_PORT", "8000")),
         log_level="info",
     )

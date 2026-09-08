@@ -82,11 +82,11 @@
 
 ```
 python test/relay-test.py          방 규칙 50항목 + 실제 WebSocket 왕복 10항목
-LP_STATIC=. python server/main.py  로컬에서 정적+릴레이를 한 포트로 띄운다
+GP_STATIC=. python server/main.py  로컬에서 정적+릴레이를 한 포트로 띄운다
   → http://127.0.0.1:8000/tv/index.html  과  /play/index.html
 ```
 
-`LP_STATIC`은 개발용이다. 평시에는 비워둔다 — 정적 파일은 Netlify 몫이다 (PROJECT.md §1).
+`GP_STATIC`은 개발용이다. 평시에는 비워둔다 — 정적 파일은 Netlify 몫이다 (PROJECT.md §1).
 
 ## 리스크
 

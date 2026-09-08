@@ -1,5 +1,5 @@
 /**
- * L-Party 폰 컨트롤러
+ * Game-Party 폰 컨트롤러
  *
  * 다섯 화면을 단일 페이지 + 상태 머신으로 처리한다. 라우팅 없음 (PROJECT.md 7장).
  * TV가 보낸 phase 메시지에 따라 UI를 바꾼다.
@@ -12,8 +12,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var T = LP.tuning;
+  var GP = global.GP || (global.GP = {});
+  var T = GP.tuning;
   var doc = global.document;
 
   // 코드에 쓰는 숫자는 여섯 개뿐이다. 0과 6, 1과 7은 5세에게 비슷하게 보인다.
@@ -68,15 +68,15 @@
     wave: []          // 파형 오버레이용 최근 값
   };
 
-  LP.play = { state: S };
+  GP.play = { state: S };
 
   // 임계값을 주소로 덮어썼으면 그 사실을 폰 위쪽에 항상 띄운다.
   // 판정이 이상할 때 "튜닝을 켜둔 것"과 "판정이 잘못된 것"을 구분하려면 보여야 한다.
-  if (LP.tune && LP.tune.has()) {
+  if (GP.tune && GP.tune.has()) {
     var tw = el('tune-warn');
     if (tw) {
-      tw.textContent = LP.tune.summary();
-      tw.className = 'on' + (LP.tune.rejected().length ? ' bad' : '');
+      tw.textContent = GP.tune.summary();
+      tw.className = 'on' + (GP.tune.rejected().length ? ' bad' : '');
     }
   }
 
@@ -154,12 +154,12 @@
     // 숫자를 누른 이 흐름이 그 제스처다.
     startSensors();
 
-    var useDev = LP.devlink && LP.devlink.enabled();
+    var useDev = GP.devlink && GP.devlink.enabled();
 
-    S.net = new LP.net.Net({
-      url: LP.net.defaultUrl(),
+    S.net = new GP.net.Net({
+      url: GP.net.defaultUrl(),
       role: 'play',
-      socketFactory: useDev ? LP.devlink.factory : undefined
+      socketFactory: useDev ? GP.devlink.factory : undefined
     });
 
     S.net.on('status', function (st) {
@@ -263,7 +263,7 @@
   function buildChars() {
     var box = el('chars');
     box.innerHTML = '';
-    var list = LP.chars.list;
+    var list = GP.chars.list;
 
     for (var i = 0; i < list.length; i++) {
       (function (c) {
@@ -299,7 +299,7 @@
 
   function sendReady() {
     if (!S['char'] || !S.net) return;
-    var c = LP.chars.byId[S['char']];
+    var c = GP.chars.byId[S['char']];
     // 5세에게 이름 입력을 시키지 않는다. 캐릭터 이름을 그대로 쓴다.
     S.net.join(c ? c.name : '플레이어', S['char']);
     S.net.send({ t: 'ready' });
@@ -312,17 +312,17 @@
   function startSensors() {
     if (S.det) return;
 
-    S.det = new LP.motion.Detector();
+    S.det = new GP.motion.Detector();
 
     // 합성 센서를 릴레이 선택과 분리한다.
     //   ?dev=1   로컬 릴레이(BroadcastChannel) + 키보드 센서 — 서버 없이 흐름만 볼 때
     //   ?keys=1  진짜 릴레이 서버 + 키보드 센서 — 통신까지 태워서 게임을 볼 때
     // 배포본 주소에는 둘 다 없다.
-    if (/[?&](dev=1|keys=1)/.test(global.location.search) && LP.devsensor) {
+    if (/[?&](dev=1|keys=1)/.test(global.location.search) && GP.devsensor) {
       // 데스크톱에는 센서가 없어 키보드로 흉내낸다. 실기에서는 이 갈래를 타지 않는다.
-      S.detach = LP.devsensor.attach(S.det);
+      S.detach = GP.devsensor.attach(S.det);
     } else {
-      S.detach = LP.motion.attach(S.det, function (err) {
+      S.detach = GP.motion.attach(S.det, function (err) {
         if (err) {
           setWait('센서를 쓸 수 없어요', err.message);
           show('wait');
@@ -401,7 +401,7 @@
     el('calib-msg').textContent = '';
     el('calib-fill').style.width = '0%';
 
-    S.cancelCalib = LP.calib.run(S.det, {
+    S.cancelCalib = GP.calib.run(S.det, {
       onProgress: function (r) {
         el('calib-fill').style.width = Math.round(r * 100) + '%';
         // 진행률을 TV에도 보낸다. 여러 명일 때 누가 아직인지 보여야 한다.
@@ -550,7 +550,7 @@
 
   /* 시작 */
 
-  LP.play.start = function () {
+  GP.play.start = function () {
     S.debug = /[?&]debug=1/.test(global.location.search);
 
     buildKeypad();

@@ -63,10 +63,10 @@ function load(files) {
   for (const f of files) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sb, { filename: f });
   }
-  return win.LP;
+  return win.GP;
 }
 
-const LP = load([
+const GP = load([
   'js/config.js', 'js/tuning.js', 'js/gfx.js',
   'js/assets-manifest.js', 'js/assets.js', 'js/chars.js', 'js/npc.js',
   'js/board.js', 'js/tv.js',
@@ -95,10 +95,10 @@ function eq(name, got, want) {
 /** 게임을 붙일 가짜 셸. TV가 주는 것과 같은 모양이다. */
 function makeApi(players) {
   const api = {
-    config: LP.config,
-    tuning: LP.tuning,
-    chars: LP.chars,
-    gfx: LP.gfx,
+    config: GP.config,
+    tuning: GP.tuning,
+    chars: GP.chars,
+    gfx: GP.gfx,
     players: players || [{ id: 'p1', name: '조카', char: 'lhat', score: 0 }],
     fxLog: [],
     ended: 0,
@@ -118,7 +118,7 @@ function step(def, seconds, dt) {
 
 function testJumprope() {
   console.log('\n[줄넘기]');
-  const def = LP.games.get('jumprope');
+  const def = GP.games.get('jumprope');
   const T = def._test;
 
   eq('점프만 구독한다', def.motion, 'jump');
@@ -212,7 +212,7 @@ function testJumprope() {
 
 function testNpc() {
   console.log('\n[NPC 러버밴딩]');
-  const N = LP.npc;
+  const N = GP.npc;
 
   // 속도계 — 초당 동작 수
   const m = new N.SpeedMeter(6);
@@ -267,7 +267,7 @@ function testNpc() {
 
 function testRopeclimb() {
   console.log('\n[로프 오르기]');
-  const def = LP.games.get('ropeclimb');
+  const def = GP.games.get('ropeclimb');
   const T = def._test;
 
   eq('스쿼트만 구독한다', def.motion, 'squat');
@@ -372,7 +372,7 @@ function testRopeclimb() {
 
 function testHammer() {
   console.log('\n[해머 피하기]');
-  const def = LP.games.get('hammer');
+  const def = GP.games.get('hammer');
   const T = def._test;
 
   eq('기울기를 구독한다', def.motion, 'tilt');
@@ -415,7 +415,7 @@ function testHammer() {
   // 기울기 → 레인, 히스테리시스
   const api = makeApi();
   def.init(api);
-  const TT = LP.tuning;
+  const TT = GP.tuning;
   const degToV = (d) => d / TT.TILT_RANGE_DEG;
   def.onTilt({ v: degToV(-20), from: 'p1' });
   eq('왼쪽으로 기울이면 1번 레인', T.state('p1').lane, 0);
@@ -471,25 +471,25 @@ function testHammer() {
 function testRoulette() {
   console.log('\n[룰렛]');
 
-  const vis = LP.games.visible();
+  const vis = GP.games.visible();
   ok('진단 화면은 목록에 없다', vis.indexOf('debug') < 0);
   ok('만든 게임이 다 들어 있다', vis.length >= 3);
 
   // 직전 게임은 후보에서 빠진다
-  ok('직전 게임은 안 나온다', LP.games.pool('hammer').indexOf('hammer') < 0);
+  ok('직전 게임은 안 나온다', GP.games.pool('hammer').indexOf('hammer') < 0);
 
   // 하체 부하 높은 게임이 연속으로 나오지 않는다
-  const afterHigh = LP.games.pool('jumprope');
+  const afterHigh = GP.games.pool('jumprope');
   ok('힘든 게임 다음에는 힘든 게임이 없다',
-     afterHigh.every(id => LP.games.get(id).load !== 'high'));
+     afterHigh.every(id => GP.games.get(id).load !== 'high'));
 
   // 100판 시뮬레이션 — 부하 높은 게임이 연달아 나오는지 본다 (phase6 완료 기준)
   let last = null, backToBackHigh = 0, sameTwice = 0;
   const seen = {};
   for (let i = 0; i < 100; i++) {
-    const pick = LP.games.roll(last);
+    const pick = GP.games.roll(last);
     if (last && pick === last) sameTwice++;
-    if (last && LP.games.get(last).load === 'high' && LP.games.get(pick).load === 'high') {
+    if (last && GP.games.get(last).load === 'high' && GP.games.get(pick).load === 'high') {
       backToBackHigh++;
     }
     seen[pick] = (seen[pick] || 0) + 1;
@@ -500,21 +500,21 @@ function testRoulette() {
   ok('한 게임만 나오지 않는다', Object.keys(seen).length >= 2);
 
   // 후보가 하나도 안 남는 상황에서도 뭔가는 뽑는다 — 멈추는 것이 제일 나쁘다
-  ok('후보가 좁아도 뽑는다', !!LP.games.roll('hammer'));
+  ok('후보가 좁아도 뽑는다', !!GP.games.roll('hammer'));
 
   // 첫 판은 힘든 것으로 시작하지 않는다 (PROJECT.md 9장 배치: 낮음으로 시작)
   ok('첫 판은 부하 높은 게임이 아니다',
-     LP.games.pool(null).every(id => LP.games.get(id).load !== 'high'));
+     GP.games.pool(null).every(id => GP.games.get(id).load !== 'high'));
 
   // 세션 100번을 통째로 돌려도 규칙이 안 깨진다
   let bad = 0;
   for (let s = 0; s < 100; s++) {
     let prev = null;
     for (let r = 0; r < 5; r++) {
-      const pick = LP.games.roll(prev);
-      if (r === 0 && LP.games.get(pick).load === 'high') bad++;
+      const pick = GP.games.roll(prev);
+      if (r === 0 && GP.games.get(pick).load === 'high') bad++;
       if (prev && pick === prev) bad++;
-      if (prev && LP.games.get(prev).load === 'high' && LP.games.get(pick).load === 'high') bad++;
+      if (prev && GP.games.get(prev).load === 'high' && GP.games.get(pick).load === 'high') bad++;
       prev = pick;
     }
   }
@@ -525,7 +525,7 @@ function testRoulette() {
 
 function testBlockbreak() {
   console.log('\n[블록깨기]');
-  const def = LP.games.get('blockbreak');
+  const def = GP.games.get('blockbreak');
   const T = def._test;
   const n = T.TUNE.GRID * T.TUNE.GRID;
 
@@ -635,7 +635,7 @@ function testBlockbreak() {
     T.state('p1').cell = 0;
     def.onMotion({ a: 'punch', from: 'p1' });
   }
-  ok('파티클이 상한을 넘지 않는다', T.parts().alive() <= LP.config.MAX_PARTICLES);
+  ok('파티클이 상한을 넘지 않는다', T.parts().alive() <= GP.config.MAX_PARTICLES);
 
   // 시간이 깎이면 일찍 끝난다
   api = makeApi();
@@ -656,7 +656,7 @@ function testBlockbreak() {
 
 function testBoard() {
   console.log('\n[세션 보드]');
-  const B = LP.board;
+  const B = GP.board;
 
   eq('보드는 24칸', B.TUNE.CELLS, 24);
   eq('칸 종류가 다 있다',
@@ -761,8 +761,8 @@ function testMultiplayer() {
     { id: 'p3', name: 'C', char: 'peach' }, { id: 'p4', name: 'D', char: 'bowser' }
   ];
 
-  for (const id of LP.games.ids()) {
-    const def = LP.games.get(id);
+  for (const id of GP.games.ids()) {
+    const def = GP.games.get(id);
     if (id === 'debug') continue;
     const api = makeApi(four.map(p => Object.assign({}, p)));
     def.init(api);
@@ -785,7 +785,7 @@ function testMultiplayer() {
   }
 
   // 로프는 사람이 넷이면 NPC 없이 사람만 네 레인
-  const rc = LP.games.get('ropeclimb');
+  const rc = GP.games.get('ropeclimb');
   rc.init(makeApi(four.map(p => Object.assign({}, p))));
   eq('로프: 사람 넷이면 NPC 없음', rc._test.npcs().length, 0);
   eq('로프: 레인은 그대로 4개', rc._test.lanes().length, 4);
@@ -803,9 +803,9 @@ function recordingCtx(log) {
 
 function testStability() {
   console.log('\n[화면 안정화]');
-  const C = LP.config;
+  const C = GP.config;
   const S = C.SAFE;
-  const tv = LP.tv;
+  const tv = GP.tv;
   const T = tv._test;
 
   // 화면을 그리려면 사람이 붙어 있어야 한다
@@ -815,7 +815,7 @@ function testStability() {
   ];
   tv.code = '2345';
   tv.gameId = 'jumprope';
-  tv.game = LP.games.get('jumprope');
+  tv.game = GP.games.get('jumprope');
   tv.game.init(makeApi(tv.players));
   T.pieceOf('p1').stars = 2;
   T.pieceOf('p2').stars = 1;
@@ -857,20 +857,20 @@ function testStability() {
 
   // 게임을 계속 바꿔도 오프스크린 장수가 늘지 않는다 (30분 구동 시 메모리)
   for (let i = 0; i < 40; i++) {
-    for (const id of LP.games.ids()) {
+    for (const id of GP.games.ids()) {
       if (id === 'debug') continue;
-      LP.games.get(id).init(makeApi(tv.players));
+      GP.games.get(id).init(makeApi(tv.players));
     }
   }
-  ok('오프스크린 시트가 상한을 안 넘는다 (' + LP.gfx.count() + '/' + C.MAX_OFFSCREEN + ')',
-     LP.gfx.count() <= C.MAX_OFFSCREEN);
+  ok('오프스크린 시트가 상한을 안 넘는다 (' + GP.gfx.count() + '/' + C.MAX_OFFSCREEN + ')',
+     GP.gfx.count() <= C.MAX_OFFSCREEN);
 }
 
 /* ══ 끊김 복구 ════════════════════════════════════════ */
 
 function testReconnect() {
   console.log('\n[끊김 복구]');
-  const tv = LP.tv;
+  const tv = GP.tv;
   const T = tv._test;
 
   tv.players = [
@@ -911,60 +911,60 @@ function testReconnect() {
 
 function testTuneOverride() {
   console.log('\n[현장 튜닝 오버라이드]');
-  const T = LP.tune;
+  const T = GP.tune;
 
   // 주소에 아무것도 없으면 아무 일도 안 일어난다. 배포본이 이 상태다.
   T._reset('');
   ok('주소에 없으면 조용하다', !T.has());
 
   // 판정 임계값 덮어쓰기
-  const before = LP.tuning.SPIKE_ON;
+  const before = GP.tuning.SPIKE_ON;
   T._reset('?tune=SPIKE_ON:10,SQUAT_DOWN_DEG:16');
-  eq('두 개를 적용한다', T.apply(LP.tuning, ''), 2);
-  eq('임계값이 바뀐다', LP.tuning.SPIKE_ON, 10);
-  eq('두 번째도 바뀐다', LP.tuning.SQUAT_DOWN_DEG, 16);
+  eq('두 개를 적용한다', T.apply(GP.tuning, ''), 2);
+  eq('임계값이 바뀐다', GP.tuning.SPIKE_ON, 10);
+  eq('두 번째도 바뀐다', GP.tuning.SQUAT_DOWN_DEG, 16);
   ok('적용됐다고 알린다', T.has() && T.summary().indexOf('2개') >= 0);
   ok('무엇을 바꿨는지 남긴다', T.applied().some(s => s.indexOf('SPIKE_ON') >= 0));
-  LP.tuning.SPIKE_ON = before;
-  LP.tuning.SQUAT_DOWN_DEG = 22;
+  GP.tuning.SPIKE_ON = before;
+  GP.tuning.SQUAT_DOWN_DEG = 22;
 
   // 게임별 값 — 점 앞이 게임 id
-  const rc = LP.games.get('ropeclimb');
+  const rc = GP.games.get('ropeclimb');
   const h0 = rc.tune.HEIGHT;
   T._reset('?tune=ropeclimb.HEIGHT:18');
   eq('게임 값에 적용된다', T.apply(rc.tune, 'ropeclimb'), 1);
   eq('로프 높이가 낮아진다', rc.tune.HEIGHT, 18);
-  eq('다른 게임에는 안 붙는다', T.apply(LP.games.get('jumprope').tune, 'jumprope'), 0);
+  eq('다른 게임에는 안 붙는다', T.apply(GP.games.get('jumprope').tune, 'jumprope'), 0);
   rc.tune.HEIGHT = h0;
 
   // 없는 이름은 조용히 통과시키지 않는다 — 오타인지 안 먹는 건지 현장에서 못 가린다
   T._reset('?tune=SPIKE_OM:10');
-  eq('오타는 적용되지 않는다', T.apply(LP.tuning, ''), 0);
+  eq('오타는 적용되지 않는다', T.apply(GP.tuning, ''), 0);
   ok('오타를 기록한다', T.rejected().some(s => s.indexOf('SPIKE_OM') >= 0));
   ok('무시했다고 화면에 알린다', T.summary().indexOf('무시') >= 0);
 
   // 숫자가 아니면 거부
   T._reset('?tune=SPIKE_ON:abc');
-  eq('숫자가 아니면 안 받는다', T.apply(LP.tuning, ''), 0);
+  eq('숫자가 아니면 안 받는다', T.apply(GP.tuning, ''), 0);
   ok('사유를 남긴다', T.rejected().length > 0);
 
   // 함수·객체 자리를 숫자로 덮어쓰지 않는다
   T._reset('?tune=blockbreak.WEIGHT:5');
-  eq('숫자가 아닌 항목은 안 바꾼다', T.apply(LP.games.get('blockbreak').tune, 'blockbreak'), 0);
-  ok('WEIGHT는 그대로', typeof LP.games.get('blockbreak').tune.WEIGHT === 'object');
+  eq('숫자가 아닌 항목은 안 바꾼다', T.apply(GP.games.get('blockbreak').tune, 'blockbreak'), 0);
+  ok('WEIGHT는 그대로', typeof GP.games.get('blockbreak').tune.WEIGHT === 'object');
 
   // 형식이 깨져도 나머지는 살린다. 현장에서 하나 틀렸다고 전부 날아가면 곤란하다
   T._reset('?tune=SPIKE_ON:9,망가진값,SQUAT_UP_DEG:8');
-  const n = T.apply(LP.tuning, '');
+  const n = T.apply(GP.tuning, '');
   eq('멀쩡한 것만 적용', n, 2);
   ok('깨진 항목을 기록한다', T.rejected().length > 0);
-  LP.tuning.SPIKE_ON = before;
-  LP.tuning.SQUAT_UP_DEG = 10;
+  GP.tuning.SPIKE_ON = before;
+  GP.tuning.SQUAT_UP_DEG = 10;
 
   // 다른 쿼리와 섞여 있어도 찾는다
   T._reset('?dev=1&tune=SPIKE_ON:11&fps=1');
-  eq('다른 파라미터와 섞여도 읽는다', T.apply(LP.tuning, ''), 1);
-  LP.tuning.SPIKE_ON = before;
+  eq('다른 파라미터와 섞여도 읽는다', T.apply(GP.tuning, ''), 1);
+  GP.tuning.SPIKE_ON = before;
 
   T._reset('');
 }
@@ -973,14 +973,14 @@ function testTuneOverride() {
 
 function testAssets() {
   console.log('\n[에셋 폴백]');
-  const A = LP.assets;
+  const A = GP.assets;
 
   // 기본값: 매니페스트가 비어 있다. 지금 상태가 이거다.
   eq('매니페스트는 비어서 시작한다',
-     Object.keys(LP.assetManifest.chars).length + Object.keys(LP.assetManifest.bg).length, 0);
+     Object.keys(GP.assetManifest.chars).length + Object.keys(GP.assetManifest.bg).length, 0);
 
   A._reset();
-  A.boot(LP.assetManifest);
+  A.boot(GP.assetManifest);
   eq('받을 것이 없다', A.status().total, 0);
   eq('그림이 없으면 캐릭터를 안 그린다', A.charFrame(fakeCtx(), 'lhat', 'idle', 0, 0, 100), false);
   eq('그림이 없으면 배경도 안 그린다', A.bg(fakeCtx(), 'jumprope', 1280, 720), false);
@@ -1009,16 +1009,16 @@ function testAssets() {
   // chars.draw가 폴백으로 내려가 예외 없이 그려진다
   let threw = null;
   try {
-    LP.chars.draw(fakeCtx(), 'lhat', 100, 200, 160, 'jump');
-    LP.chars.draw(fakeCtx(), 'bowser', 100, 200, 160, 'idle');
+    GP.chars.draw(fakeCtx(), 'lhat', 100, 200, 160, 'jump');
+    GP.chars.draw(fakeCtx(), 'bowser', 100, 200, 160, 'idle');
   } catch (e) { threw = e; }
   ok('그림이 없어도 캐릭터가 그려진다', threw === null);
 
   // 게임 배경도 마찬가지
   threw = null;
   try {
-    for (const id of LP.games.ids()) {
-      const def = LP.games.get(id);
+    for (const id of GP.games.ids()) {
+      const def = GP.games.get(id);
       def.init(makeApi());
       def.render(fakeCtx());
     }
@@ -1026,7 +1026,7 @@ function testAssets() {
   ok('그림이 없어도 네 게임이 다 그려진다', threw === null);
 
   A._reset();
-  A.boot(LP.assetManifest);
+  A.boot(GP.assetManifest);
 }
 
 /* ══ 실행 ═════════════════════════════════════════════ */

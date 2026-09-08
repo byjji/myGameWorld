@@ -19,9 +19,9 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
-  LP.assetManifest = {
+  GP.assetManifest = {
 
     /* 캐릭터 스프라이트 시트.
        가로로 이어붙인 프레임 배열. poses가 자세별 프레임 번호를 가리킨다.

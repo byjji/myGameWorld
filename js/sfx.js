@@ -1,5 +1,5 @@
 /**
- * L-Party 효과음 — WebAudio 합성
+ * Game-Party 효과음 — WebAudio 합성
  *
  * 에셋 파일이 없다. 사운드 확보 방법은 아직 미결정이고(PROJECT.md 12장),
  * 그것을 기다리면 게임 피드백이 통째로 비어 있게 된다. 그래서 오실레이터로 만든다.
@@ -16,7 +16,7 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
   var ctx = null;
   var enabled = true;
@@ -161,7 +161,7 @@
     bgmTimer = global.setInterval(pump, 200);
   }
 
-  LP.sfx = {
+  GP.sfx = {
     play: play,
     bgm: bgm,
     resume: resume,

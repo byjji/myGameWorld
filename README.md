@@ -1,4 +1,4 @@
-# L-Party
+# Game-Party
 
 조카(2021년생)와 함께 놀기 위한 웹 기반 동작인식 파티게임.
 폰을 컨트롤러로 쓰고 TV 화면에서 논다.
@@ -60,7 +60,7 @@ docs/             배포 절차 · 플레이테스트 양식 · 어른용 안내
 ## 돌려보기
 
 ```sh
-LP_STATIC=. python server/main.py
+GP_STATIC=. python server/main.py
 ```
 
 | 주소 | 용도 |

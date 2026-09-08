@@ -19,8 +19,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP;
-  var C = LP.config;
+  var GP = global.GP;
+  var C = GP.config;
 
   /* ── 튜닝 값 ────────────────────────────────────────── */
   var TUNE = {
@@ -102,7 +102,7 @@
     var pool = ['bowser', 'mario', 'peach', 'toad'];
     for (i = 0; i < pool.length && lanes.length < TUNE.LANES; i++) {
       if (taken[pool[i]]) continue;
-      var racer = new LP.npc.Racer({
+      var racer = new GP.npc.Racer({
         pacer: pool[i] === 'bowser',
         unit: 1 / TUNE.HEIGHT           // 스쿼트 한 번 = 1/HEIGHT 만큼의 진행도
       });
@@ -114,7 +114,7 @@
   /* ── 프리렌더 ─────────────────────────────────────── */
 
   function buildArt() {
-    LP.gfx.sheet('rc-coin', 4, 44, 44, function (c2, i) {
+    GP.gfx.sheet('rc-coin', 4, 44, 44, function (c2, i) {
       var w = 44 * (1 - i * 0.22);              // 도는 것처럼 폭만 줄인다
       c2.fillStyle = '#ffd23b';
       c2.beginPath();
@@ -125,7 +125,7 @@
       c2.fillRect(20, 12, Math.max(w * 0.12, 2), 20);
     });
 
-    LP.gfx.sheet('rc-bomb', 2, 48, 48, function (c2, i) {
+    GP.gfx.sheet('rc-bomb', 2, 48, 48, function (c2, i) {
       c2.fillStyle = i === 0 ? '#1b1b22' : '#3a3a48';   // 깜빡인다. 예고를 겸한다
       c2.beginPath();
       c2.arc(24, 26, 18, 0, Math.PI * 2);
@@ -137,7 +137,7 @@
 
   /* ── 게임 ─────────────────────────────────────────── */
 
-  var def = LP.games.register('ropeclimb', {
+  var def = GP.games.register('ropeclimb', {
     name: '로프 오르기',
     motion: 'squat',
     load: 'high',          // 하체 유산소. 줄넘기와 연달아 붙이지 않는다 (PROJECT.md 9장)
@@ -154,7 +154,7 @@
       bombs = [];
       nextBomb = TUNE.BOMB_EVERY;
       finishedAt = 0;
-      meter = new LP.npc.SpeedMeter(6);
+      meter = new GP.npc.SpeedMeter(6);
       buildLanes();
       buildArt();
     },
@@ -163,7 +163,7 @@
       var cycle = (tt % 1.6) / 1.6;
       var pose = cycle < 0.45 ? 'squat' : 'idle';
       var lift = cycle < 0.45 ? 0 : (cycle - 0.45) / 0.55 * 60;
-      LP.chars.draw(ctx, chr, C.WIDTH / 2, C.HEIGHT * 0.82 - lift, 320, pose);
+      GP.chars.draw(ctx, chr, C.WIDTH / 2, C.HEIGHT * 0.82 - lift, 320, pose);
       ctx.fillStyle = '#b8763a';
       ctx.fillRect(C.WIDTH / 2 - 7, C.HEIGHT * 0.18, 14, C.HEIGHT * 0.64 - lift);
     },
@@ -272,8 +272,8 @@
 
       // 세로 스크롤 배경. 그림이 있으면 위아래로 이어 붙이고,
       // 없으면 가로줄만 그린다 — fillRect는 drawImage가 아니라 예산에 안 잡힌다.
-      var scrolled = LP.assets &&
-                     LP.assets.bgTileY(ctx, 'ropeclimb',
+      var scrolled = GP.assets &&
+                     GP.assets.bgTileY(ctx, 'ropeclimb',
                                        Math.round(-camClimb * TUNE.STEP_PX), C.WIDTH, C.HEIGHT);
       if (!scrolled) {
         ctx.fillStyle = '#12203c';
@@ -316,7 +316,7 @@
         for (var ci = hs.nextCoin; ci < TUNE.COIN_AT.length; ci++) {
           var cy = screenY(TUNE.COIN_AT[ci]);
           if (cy < -40 || cy > C.HEIGHT + 40) continue;
-          LP.gfx.blit(ctx, 'rc-coin', Math.floor(t * 8), lx, cy, 1);
+          GP.gfx.blit(ctx, 'rc-coin', Math.floor(t * 8), lx, cy, 1);
         }
       }
 
@@ -334,14 +334,14 @@
           climb = npcs[ln.idx].racer.pos * TUNE.HEIGHT;
           pose = (Math.floor(t * 3) % 2) ? 'squat' : 'idle';
         }
-        LP.chars.draw(ctx, ln['char'], lx, screenY(climb), 170, pose);
+        GP.chars.draw(ctx, ln['char'], lx, screenY(climb), 170, pose);
       }
 
       // 밥밥탄
       for (i = 0; i < bombs.length; i++) {
         var bi = laneIndexOf(bombs[i].id);
         if (bi < 0) continue;
-        LP.gfx.blit(ctx, 'rc-bomb', Math.floor(t * 8) % 2,
+        GP.gfx.blit(ctx, 'rc-bomb', Math.floor(t * 8) % 2,
                     S.x + laneW * (bi + 0.5), screenY(bombs[i].y), 1);
       }
 

@@ -20,8 +20,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP;
-  var C = LP.config;
+  var GP = global.GP;
+  var C = GP.config;
 
   /* ── 튜닝 값 ────────────────────────────────────────── */
   var TUNE = {
@@ -107,7 +107,7 @@
   }
 
   function buildArt() {
-    LP.gfx.sheet('bb-coin', 4, 30, 30, function (c2, i) {
+    GP.gfx.sheet('bb-coin', 4, 30, 30, function (c2, i) {
       var w = 30 * (1 - i * 0.24);
       c2.fillStyle = '#ffd23b';
       c2.beginPath();
@@ -118,7 +118,7 @@
 
   /* ── 게임 ─────────────────────────────────────────── */
 
-  var def = LP.games.register('blockbreak', {
+  var def = GP.games.register('blockbreak', {
     name: '블록깨기',
     motion: 'punch',
     load: 'low',           // 앉아서 한다. 힘든 게임 사이에 끼우는 자리
@@ -134,7 +134,7 @@
       penalty = 0;
       st = {};
       shakeAt = -99;
-      parts = new LP.gfx.Particles(C.MAX_PARTICLES);
+      parts = new GP.gfx.Particles(C.MAX_PARTICLES);
       fillGrid();
       buildArt();
     },
@@ -147,7 +147,7 @@
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 6;
       ctx.strokeRect(r.x - 4, r.y - 4, r.s + 2, r.s + 2);
-      LP.chars.draw(ctx, chr, C.WIDTH / 2, C.HEIGHT * 0.94, 260,
+      GP.chars.draw(ctx, chr, C.WIDTH / 2, C.HEIGHT * 0.94, 260,
                     (tt % 1.2) < 0.35 ? 'punch' : 'idle');
     },
 
@@ -214,12 +214,12 @@
       var players = api ? api.players : [];
       var s0 = players.length ? state(players[0].id) : null;
 
-      var sh = LP.gfx.shake(t - shakeAt, TUNE.SHAKE_SEC, TUNE.SHAKE_PX);
+      var sh = GP.gfx.shake(t - shakeAt, TUNE.SHAKE_SEC, TUNE.SHAKE_PX);
 
       // 스타 중에는 배경을 밝게 바꾼다. 그림이 있어도 그 위에 얇게 덮는다 —
       // 스타가 걸린 걸 화면 전체로 알리는 것이 이 게임의 핵심 연출이다.
       var starOn = s0 && t < s0.starUntil;
-      if (!LP.assets || !LP.assets.bg(ctx, 'blockbreak', C.WIDTH, C.HEIGHT)) {
+      if (!GP.assets || !GP.assets.bg(ctx, 'blockbreak', C.WIDTH, C.HEIGHT)) {
         ctx.fillStyle = starOn ? '#3a2f10' : '#182034';
         ctx.fillRect(0, 0, C.WIDTH, C.HEIGHT);
       } else if (starOn) {
@@ -251,7 +251,7 @@
       for (var ci = 0; ci < players.length; ci++) {
         var cs = state(players[ci].id);
         var cr = cellRect(cs.cell % count());
-        var ch = LP.chars.byId[players[ci]['char']];
+        var ch = GP.chars.byId[players[ci]['char']];
         var inset = ci * 9;
         ctx.strokeStyle = t < cs.starUntil ? '#ffd23b'
                         : (players.length > 1 && ch ? ch.cap : '#ffffff');
@@ -264,7 +264,7 @@
 
       for (var p = 0; p < players.length; p++) {
         var ps = state(players[p].id);
-        LP.chars.draw(ctx, players[p]['char'],
+        GP.chars.draw(ctx, players[p]['char'],
                       C.WIDTH / 2 + (p - (players.length - 1) / 2) * 260,
                       C.HEIGHT - S.y, players.length > 2 ? 170 : 200,
                       (t - ps.punchAt) < 0.2 ? 'punch' : 'idle');
@@ -331,7 +331,7 @@
     } else {
       ctx.font = 'bold 38px sans-serif';
       for (var i = 0; i < players.length && i < 4; i++) {
-        var ch = LP.chars.byId[players[i]['char']];
+        var ch = GP.chars.byId[players[i]['char']];
         ctx.fillStyle = (ch && ch.cap) || '#ffffff';
         ctx.fillText(String(state(players[i].id).score), S.x + i * 90, S.y + 56);
       }

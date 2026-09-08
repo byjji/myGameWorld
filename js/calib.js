@@ -1,5 +1,5 @@
 /**
- * L-Party 센서 캘리브레이션
+ * Game-Party 센서 캘리브레이션
  *
  * "폰을 가슴에 대고 똑바로 서세요" 3초 (PROJECT.md 4장).
  * 없으면 폰을 쥔 각도에 따라 기준이 매번 달라져 판정이 무너진다.
@@ -11,8 +11,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var T = LP.tuning;
+  var GP = global.GP || (global.GP = {});
+  var T = GP.tuning;
 
   function mean(arr) {
     var s = 0;
@@ -27,7 +27,7 @@
     return Math.sqrt(s / (arr.length - 1));
   }
 
-  LP.calib = {
+  GP.calib = {
 
     /**
      * 보정을 시작한다.

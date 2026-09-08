@@ -19,8 +19,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP;
-  var C = LP.config;
+  var GP = global.GP;
+  var C = GP.config;
 
   /* ── 튜닝 값 ──────────────────────────────────────────
      코드 문제가 아니라 조카 표정을 보고 정하는 숫자다. 전부 여기 모아둔다. */
@@ -88,7 +88,7 @@
      TV에서 그것만으로 예산을 먹는다 (phase1). */
 
   function buildRope() {
-    LP.gfx.sheet('jr-rope', TUNE.ROPE_FRAMES, ROPE_W, ROPE_H, function (c2, i) {
+    GP.gfx.sheet('jr-rope', TUNE.ROPE_FRAMES, ROPE_W, ROPE_H, function (c2, i) {
       var ph = i / TUNE.ROPE_FRAMES;             // 0 = 발밑, 0.5 = 머리 위
       var sag = Math.cos(ph * Math.PI * 2);      // +1 아래(발밑), -1 위(머리 위)
 
@@ -115,7 +115,7 @@
 
   /* ── 게임 ─────────────────────────────────────────── */
 
-  var def = LP.games.register('jumprope', {
+  var def = GP.games.register('jumprope', {
     name: '줄넘기',
     motion: 'jump',
     load: 'high',          // 하체 유산소. 로프와 연달아 붙이지 않는다 (PROJECT.md 9장)
@@ -138,8 +138,8 @@
 
     demo: function (ctx, tt, chr) {
       var cycle = (tt % 1.2) / 1.2;
-      LP.chars.draw(ctx, chr, C.WIDTH / 2, GROUND_Y, 320, cycle < 0.45 ? 'jump' : 'idle');
-      LP.gfx.blit(ctx, 'jr-rope', Math.floor(cycle * TUNE.ROPE_FRAMES), C.WIDTH / 2, ROPE_CY, 1);
+      GP.chars.draw(ctx, chr, C.WIDTH / 2, GROUND_Y, 320, cycle < 0.45 ? 'jump' : 'idle');
+      GP.gfx.blit(ctx, 'jr-rope', Math.floor(cycle * TUNE.ROPE_FRAMES), C.WIDTH / 2, ROPE_CY, 1);
     },
 
     update: function (dt) {
@@ -178,7 +178,7 @@
 
       // 폰에서 판정한 뒤 여기까지 오는 지연만큼 시계를 되돌려 본다.
       // 값은 실측 전까지 0이다 (js/tuning.js JUMP_LAG_MS).
-      var lag = (LP.tuning.JUMP_LAG_MS || 0) / 1000;
+      var lag = (GP.tuning.JUMP_LAG_MS || 0) / 1000;
       var rt = ropeT - lag / period();
 
       var cycle = (rt % 1) > 0.5 ? Math.ceil(rt) : Math.floor(rt);
@@ -224,7 +224,7 @@
       var players = api ? api.players : [];
 
       // 배경. 그림이 있으면 한 장, 없으면 사각형 몇 개 (phase1 예산).
-      if (!LP.assets || !LP.assets.bg(ctx, 'jumprope', C.WIDTH, C.HEIGHT)) {
+      if (!GP.assets || !GP.assets.bg(ctx, 'jumprope', C.WIDTH, C.HEIGHT)) {
         ctx.fillStyle = '#7cc6ef';
         ctx.fillRect(0, 0, C.WIDTH, GROUND_Y);
         ctx.fillStyle = '#4a9a3f';
@@ -235,7 +235,7 @@
 
       // 줄이 뒤로 돌 때는 캐릭터보다 먼저 그린다. 앞뒤가 바뀌면 줄이 몸을 뚫는다.
       var behind = phase > 0.25 && phase < 0.75;
-      if (behind) LP.gfx.blit(ctx, 'jr-rope', frame, C.WIDTH / 2, ROPE_CY, 1);
+      if (behind) GP.gfx.blit(ctx, 'jr-rope', frame, C.WIDTH / 2, ROPE_CY, 1);
 
       var gap = players.length > 1 ? Math.min(300, S.w / players.length) : 0;
       var x0 = C.WIDTH / 2 - (players.length - 1) * gap / 2;
@@ -253,10 +253,10 @@
           pose = 'jump';
           lift = Math.sin((t - s.jumpAt) / 0.28 * Math.PI) * 70;
         }
-        LP.chars.draw(ctx, p['char'], x, GROUND_Y - lift, 260, pose);
+        GP.chars.draw(ctx, p['char'], x, GROUND_Y - lift, 260, pose);
       }
 
-      if (!behind) LP.gfx.blit(ctx, 'jr-rope', frame, C.WIDTH / 2, ROPE_CY, 1);
+      if (!behind) GP.gfx.blit(ctx, 'jr-rope', frame, C.WIDTH / 2, ROPE_CY, 1);
 
       drawHud(ctx, players);
     }

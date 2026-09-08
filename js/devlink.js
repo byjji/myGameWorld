@@ -8,14 +8,14 @@
  * 제품 결정이고, 이건 개발 중에만 쓰는 배선이다.
  * 주소에 ?dev=1 이 있을 때만 켜진다. 배포본에서는 절대 켜지지 않는다.
  *
- * 사용법: LP.net.Net 의 socketFactory 자리에 LP.devlink.factory 를 넣는다.
+ * 사용법: GP.net.Net 의 socketFactory 자리에 GP.devlink.factory 를 넣는다.
  *
  * 문법 수준: ES5
  */
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
   function on() {
     return /[?&]dev=1/.test(global.location.search) &&
@@ -77,7 +77,7 @@
     if (this.onclose) this.onclose({ code: 1000 });
   };
 
-  LP.devlink = {
+  GP.devlink = {
     enabled: on,
     makeCode: makeCode,
     factory: function (url) { return new DevSocket(url); }

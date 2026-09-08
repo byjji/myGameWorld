@@ -1,5 +1,5 @@
 /**
- * L-Party 동작 판정 임계값
+ * Game-Party 동작 판정 임계값
  *
  * PROJECT.md 4장의 판정 명세를 숫자로 고정한 파일.
  * 여기 있는 값은 코드 문제가 아니라 플레이테스트로 찾는 숫자다. 조카 표정을 보고 정한다.
@@ -12,9 +12,9 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
-  LP.tuning = {
+  GP.tuning = {
 
     /* 공통 */
 
@@ -124,7 +124,7 @@
      주소에 안 붙이면 아무 일도 일어나지 않는다. 배포본에 그대로 둬도 안전하다.
      여기서 찾은 값은 반드시 이 파일에 옮겨 적는다 — 주소는 사라진다. */
 
-  var overrides = {};    // '' = LP.tuning, 그 외 = 게임 id
+  var overrides = {};    // '' = GP.tuning, 그 외 = 게임 id
   var applied = [];      // 화면에 보여줄 목록
   var rejected = [];
 
@@ -177,9 +177,9 @@
   }
 
   overrides = parse(global.location ? global.location.search : '');
-  apply(LP.tuning, '');
+  apply(GP.tuning, '');
 
-  LP.tune = {
+  GP.tune = {
     apply: apply,                                   // 게임 TUNE에 적용할 때 셸이 부른다
     has: function () { return applied.length > 0 || rejected.length > 0; },
     applied: function () { return applied.slice(); },

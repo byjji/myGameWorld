@@ -1,5 +1,5 @@
 /**
- * L-Party 캐릭터 정의 + 임시 스프라이트
+ * Game-Party 캐릭터 정의 + 임시 스프라이트
  *
  * 주인공은 M 대신 L 마크가 있는 빨간 모자 + 멜빵 캐릭터 (PROJECT.md 3장).
  * 그 외는 원작 캐릭터. 집에서만 쓰는 전제이며, 외부 공개 시 전부 교체해야 한다.
@@ -12,7 +12,7 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
   var LIST = [
     { id: 'lhat',   name: 'L모자',   mark: 'L', cap: '#e0332c', body: '#2f6fd0' },
@@ -36,8 +36,8 @@
   var MARK_PX = 64;
 
   function buildMarks() {
-    if (!LP.gfx || LP.gfx.has(MARK_KEY)) return;
-    LP.gfx.sheet(MARK_KEY, LIST.length, MARK_PX, MARK_PX, function (c2, i) {
+    if (!GP.gfx || GP.gfx.has(MARK_KEY)) return;
+    GP.gfx.sheet(MARK_KEY, LIST.length, MARK_PX, MARK_PX, function (c2, i) {
       var c = LIST[i];
       c2.fillStyle = '#ffffff';
       c2.beginPath();
@@ -61,7 +61,7 @@
 
     // 진짜 스프라이트가 있으면 그것으로 끝. 없으면 아래 도형으로 내려간다.
     // 캐릭터 하나만 그림이 준비돼도 그 캐릭터만 바뀐다 (js/assets-manifest.js).
-    if (LP.assets && LP.assets.charFrame(ctx, c.id, pose || 'idle', x, y, h)) return;
+    if (GP.assets && GP.assets.charFrame(ctx, c.id, pose || 'idle', x, y, h)) return;
 
     var w = h * 0.6;
     var headH = h * 0.34;
@@ -95,9 +95,9 @@
     // 모자 마크. 미리 그려둔 것을 blit 한다.
     // 매번 fillText로 그리면 캐릭터 수만큼 글자 예산을 먹는다 —
     // 네 명이 나오는 화면에서 그것만으로 상한(MAX_FILLTEXT)의 3분의 1이 날아간다 (phase1).
-    if (LP.gfx) {
+    if (GP.gfx) {
       buildMarks();
-      LP.gfx.blit(ctx, MARK_KEY, byIndex[c.id], x, top + headH * 0.25, headH * 0.36 / MARK_PX);
+      GP.gfx.blit(ctx, MARK_KEY, byIndex[c.id], x, top + headH * 0.25, headH * 0.36 / MARK_PX);
     } else {
       // 폰 페이지는 gfx를 싣지 않는다. 캐릭터를 그릴 일도 거의 없으니 그때만 직접 그린다.
       ctx.fillStyle = '#ffffff';
@@ -119,6 +119,6 @@
     ctx.fillRect(x + w * 0.48, top + headH * 1.1 - armUp, w * 0.14, h * 0.22);
   }
 
-  LP.chars = { list: LIST, byId: byId, draw: draw };
+  GP.chars = { list: LIST, byId: byId, draw: draw };
 
 })(window);

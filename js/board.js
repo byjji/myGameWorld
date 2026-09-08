@@ -23,7 +23,7 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
   var TUNE = {
     CELLS: 24,              // 한 바퀴. 5판이면 대략 한 바퀴 남짓 돈다
@@ -161,7 +161,7 @@
     return pts;
   }
 
-  LP.board = {
+  GP.board = {
     TUNE: TUNE,
     types: types,
     stepsFor: stepsFor,

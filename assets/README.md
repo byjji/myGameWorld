@@ -92,12 +92,12 @@ lhat: { src: 'assets/chars/lhat.png', fw: 96, fh: 160,
 ## 넣고 확인하기
 
 ```
-LP_STATIC=. python server/main.py
+GP_STATIC=. python server/main.py
 → http://127.0.0.1:8000/tv/index.html?fps=1
 ```
 
 - 그림이 안 뜨면 매니페스트의 경로 오타를 먼저 본다
-- 브라우저 콘솔에서 `LP.assets.status()` — 몇 개 받았고 무엇이 실패했는지 나온다
+- 브라우저 콘솔에서 `GP.assets.status()` — 몇 개 받았고 무엇이 실패했는지 나온다
 - fps 오버레이의 `draw`와 `cost`가 예산 안에 있는지 본다
 
 받는 중에는 임시 도형이 나온다. **로딩 화면은 없다** — 5세는 로딩을 기다리지 않는다.

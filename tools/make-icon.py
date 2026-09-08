@@ -4,8 +4,8 @@
   python tools/make-icon.py
 
 만들어지는 것 (assets/icon/):
-  lp-192.png   폰 홈 화면 · 브라우저 탭
-  lp-512.png   고해상도
+  gp-192.png   폰 홈 화면 · 브라우저 탭
+  gp-512.png   고해상도
 
 **두 가지를 해결한다.**
 
@@ -67,6 +67,6 @@ if __name__ == "__main__":
         os.makedirs(OUT)
     print("아이콘 생성:", OUT)
     for n in (192, 512):
-        path = os.path.join(OUT, "lp-%d.png" % n)
+        path = os.path.join(OUT, "gp-%d.png" % n)
         b = write_png(path, n, n, icon(n))
-        print("  lp-%d.png  %.1fKB" % (n, b / 1024))
+        print("  gp-%d.png  %.1fKB" % (n, b / 1024))

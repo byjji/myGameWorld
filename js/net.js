@@ -1,5 +1,5 @@
 /**
- * L-Party WebSocket 클라이언트 (폰·TV 공용)
+ * Game-Party WebSocket 클라이언트 (폰·TV 공용)
  *
  * PROJECT.md 8장 프로토콜 구현.
  *
@@ -27,8 +27,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var T = LP.tuning;
+  var GP = global.GP || (global.GP = {});
+  var T = GP.tuning;
 
   var BACKOFF_MS = [500, 1000, 2000, 4000, 8000];   // 재접속 지수 백오프
   var PING_MS = 25000;                              // 프록시 idle timeout 방지
@@ -266,7 +266,7 @@
     return this;
   };
 
-  LP.net = {
+  GP.net = {
     Net: Net,
 
     /** 현재 페이지 기준 기본 릴레이 주소. 정적 파일은 Netlify, WS는 NAS라 따로 준다. */

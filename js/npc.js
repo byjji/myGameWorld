@@ -24,7 +24,7 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
   var TUNE = {
     FOLLOW:      0.85,   // 기본 추격 배수 (PROJECT.md 6장)
@@ -135,7 +135,7 @@
 
   Racer.prototype.reset = function () { this.pos = 0; this.speed = 0; };
 
-  LP.npc = {
+  GP.npc = {
     TUNE: TUNE,
     SpeedMeter: SpeedMeter,
     Racer: Racer

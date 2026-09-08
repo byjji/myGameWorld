@@ -11,8 +11,8 @@ const sb = vm.createContext(win);
 for (const f of ['js/tuning.js', 'js/motion.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sb, { filename: f });
 }
-const { Detector } = win.LP.motion;
-const T = win.LP.tuning;
+const { Detector } = win.GP.motion;
+const T = win.GP.tuning;
 
 const G = T.G;
 const HZ = 60, DT = 1000 / HZ;

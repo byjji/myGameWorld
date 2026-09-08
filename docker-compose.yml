@@ -1,4 +1,4 @@
-# L-Party 릴레이 — Synology NAS Docker
+# Game-Party 릴레이 — Synology NAS Docker
 #
 #   docker compose up -d --build
 #
@@ -21,8 +21,8 @@ services:
       - "127.0.0.1:8000:8000"
 
     environment:
-      - LP_PORT=8000
-      # LP_STATIC은 비워둔다. 정적 파일을 NAS에서 내보내지 않는다.
+      - GP_PORT=8000
+      # GP_STATIC은 비워둔다. 정적 파일을 NAS에서 내보내지 않는다.
 
     # 방 상태는 메모리 딕셔너리뿐이다. 볼륨이 필요 없다 (PROJECT.md 2장).
     logging:

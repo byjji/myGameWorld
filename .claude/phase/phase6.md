@@ -12,7 +12,7 @@
 ## 산출물
 
 - `js/games/hammer.js`
-- TV 미니게임 선택 화면 + 룰렛 (`js/tv.js`의 `select` 화면, `LP.games.pool/roll`)
+- TV 미니게임 선택 화면 + 룰렛 (`js/tv.js`의 `select` 화면, `GP.games.pool/roll`)
 - `docs/playtest-2.md` — 3종 세션 플레이테스트 기록 **(빈 양식. 조카 반응 없이는 못 채운다)**
 
 ## 작업 항목

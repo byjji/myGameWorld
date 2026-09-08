@@ -1,5 +1,5 @@
 /**
- * L-Party 렌더링 예산 상수
+ * Game-Party 렌더링 예산 상수
  *
  * PROJECT.md 2장(렌더링 제약)에서 정한 제약을 코드가 참조할 수 있는 숫자로 고정한 파일.
  * 게임 코드는 여기 있는 값만 참조한다. 같은 숫자를 게임 파일에 직접 박지 않는다.
@@ -15,9 +15,9 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
-  LP.config = {
+  GP.config = {
 
     /* ── 프레임 ────────────────────────────────────────── */
 
@@ -109,8 +109,8 @@
    * 안전영역 사각형을 SAFE_RATIO로부터 다시 계산한다.
    * SAFE는 미리 적어둔 값이고, 이 함수는 비율을 바꿨을 때 쓰는 재계산용이다.
    */
-  LP.config.recalcSafe = function () {
-    var c = LP.config;
+  GP.config.recalcSafe = function () {
+    var c = GP.config;
     var mx = Math.round(c.WIDTH * c.SAFE_RATIO);
     var my = Math.round(c.HEIGHT * c.SAFE_RATIO);
     c.SAFE = { x: mx, y: my, w: c.WIDTH - mx * 2, h: c.HEIGHT - my * 2 };

@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>L-Party TV Bench 1</title>
+<title>Game-Party TV Bench 1</title>
 <!-- 아이콘. 없으면 favicon 404가 콘솔에 계속 쌓여 진짜 에러를 가린다.
      경로는 사이트 루트 기준 — 배포본에서 / 는 tv 화면으로 rewrite 되므로 상대경로를 쓰면 어긋난다. -->
-<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon/lp-192.png">
-<link rel="apple-touch-icon" href="/assets/icon/lp-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon/gp-192.png">
+<link rel="apple-touch-icon" href="/assets/icon/gp-192.png">
 
 <!--
   조카 집 TV에서 phase1 렌더링 예산 전제를 확인하는 검사 페이지.
@@ -51,13 +51,13 @@
 (function () {
   'use strict';
 
-  var C = LP.config;
+  var C = GP.config;
   var cv = document.getElementById('cv');
   var ctx = cv.getContext('2d');
   var diag = document.getElementById('diag');
 
   // 벤치에서는 쿼리스트링과 무관하게 항상 켠다.
-  LP.fps.init(ctx, true);
+  GP.fps.init(ctx, true);
 
   /* 검사용 스프라이트를 코드로 생성 (아직 에셋이 없다) */
 
@@ -238,7 +238,7 @@
 
   function buildDiag() {
     var lines = [
-      'L-Party TV Bench 1',
+      'Game-Party TV Bench 1',
       '',
       'userAgent       : ' + navigator.userAgent,
       'screen          : ' + screen.width + ' x ' + screen.height,
@@ -267,7 +267,7 @@
     last = ts;
     t += dt;
 
-    LP.fps.frameStart();
+    GP.fps.frameStart();
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -285,8 +285,8 @@
     ctx.fillText(scenes[sceneIdx].name + '   n=' + COUNTS[countIdx],
                  C.SAFE.x + 12, C.HEIGHT - C.SAFE.y - 20);
 
-    LP.fps.frameEnd();
-    LP.fps.draw(ctx);
+    GP.fps.frameEnd();
+    GP.fps.draw(ctx);
 
     requestAnimationFrame(frame);
   }
@@ -296,7 +296,7 @@
   function setScene(i) {
     sceneIdx = (i + scenes.length) % scenes.length;
     diag.style.display = (sceneIdx === 0) ? 'block' : 'none';
-    LP.fps.reset();
+    GP.fps.reset();
   }
 
   document.addEventListener('keydown', function (e) {
@@ -305,12 +305,12 @@
     else if (k === 39) setScene(sceneIdx + 1);     // 오른쪽
     else if (k === 38) {                           // 위
       countIdx = Math.min(countIdx + 1, COUNTS.length - 1);
-      LP.fps.reset();
+      GP.fps.reset();
     } else if (k === 40) {                         // 아래
       countIdx = Math.max(countIdx - 1, 0);
-      LP.fps.reset();
+      GP.fps.reset();
     } else if (k === 13 || k === 48) {             // 확인 / 0
-      LP.fps.reset();
+      GP.fps.reset();
     } else if (k >= 49 && k <= 56) {               // 1~8
       setScene(k - 49);
     }

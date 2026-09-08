@@ -12,9 +12,9 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP;
-  var C = LP.config;
-  var T = LP.tuning;
+  var GP = global.GP;
+  var C = GP.config;
+  var T = GP.tuning;
 
   var api = null;
   var counts = {};        // playerId -> { jump, punch, squat }
@@ -37,7 +37,7 @@
     return 1;
   }
 
-  LP.games.register('debug', {
+  GP.games.register('debug', {
     name: '판정 확인',
     // 진단 화면이라 네 동작을 전부 받는다. 실제 미니게임은 하나만 쓴다 (PROJECT.md 4장).
     motion: 'all',
@@ -112,7 +112,7 @@
         // 최근 판정이 있으면 그 자세로 그린다. 인식 여부를 화면만 보고 알 수 있어야 한다.
         var pose = 'idle';
         if (lz && t - lz.at < 0.35) pose = lz.a;
-        LP.chars.draw(ctx, p['char'], S.x + 80, y + 150, 150, pose);
+        GP.chars.draw(ctx, p['char'], S.x + 80, y + 150, 150, pose);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 28px sans-serif';

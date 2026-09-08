@@ -1,11 +1,11 @@
 /**
- * L-Party 동작 판정 공통 모듈
+ * Game-Party 동작 판정 공통 모듈
  *
  * PROJECT.md 4장 명세 구현. 감지하는 동작 4종: 점프 / 쳐올리기 / 스쿼트 / 좌우 기울기.
  *
  * 구조가 두 겹이다.
- *   LP.motion.Detector : 센서를 모르는 순수 판정기. 표본을 넣으면 이벤트가 나온다.
- *   LP.motion.attach() : 브라우저 센서를 구독해 Detector에 표본을 넣는다.
+ *   GP.motion.Detector : 센서를 모르는 순수 판정기. 표본을 넣으면 이벤트가 나온다.
+ *   GP.motion.attach() : 브라우저 센서를 구독해 Detector에 표본을 넣는다.
  *
  * 나눈 이유:
  *   - 판정기를 브라우저 없이 시험할 수 있다. 임계값 튜닝에 필수다.
@@ -18,8 +18,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var T = LP.tuning;
+  var GP = global.GP || (global.GP = {});
+  var T = GP.tuning;
 
   /* 유틸 */
 
@@ -332,10 +332,10 @@
 
   /* 브라우저 센서 구독 */
 
-  LP.motion = LP.motion || {};
-  LP.motion.Detector = Detector;
+  GP.motion = GP.motion || {};
+  GP.motion.Detector = Detector;
 
-  LP.motion.needsPermission = function () {
+  GP.motion.needsPermission = function () {
     return typeof global.DeviceMotionEvent !== 'undefined' &&
            typeof global.DeviceMotionEvent.requestPermission === 'function';
   };
@@ -348,7 +348,7 @@
    *
    * cb(err, detector) 로 결과를 알린다. 반환값은 구독 해제 함수.
    */
-  LP.motion.attach = function (detector, cb) {
+  GP.motion.attach = function (detector, cb) {
     var angle = { pitch: 0, roll: 0 };
 
     function onOrient(e) {
@@ -374,7 +374,7 @@
       if (cb) cb(null, detector);
     }
 
-    if (LP.motion.needsPermission()) {
+    if (GP.motion.needsPermission()) {
       global.DeviceMotionEvent.requestPermission().then(function (res) {
         if (res === 'granted') bind();
         else if (cb) cb(new Error('motion permission denied'), detector);

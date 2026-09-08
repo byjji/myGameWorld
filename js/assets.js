@@ -22,7 +22,7 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
+  var GP = global.GP || (global.GP = {});
 
   var imgs = {};        // src -> { el, ok, failed }
   var manifest = { chars: {}, bg: {} };
@@ -57,7 +57,7 @@
    * 화면을 막지 않는다 — 도착하는 대로 폴백에서 그림으로 바뀐다.
    */
   function boot(m) {
-    manifest = m || global.LP.assetManifest || { chars: {}, bg: {} };
+    manifest = m || global.GP.assetManifest || { chars: {}, bg: {} };
     if (!manifest.chars) manifest.chars = {};
     if (!manifest.bg) manifest.bg = {};
     booted = true;
@@ -69,7 +69,7 @@
     for (k in manifest.bg) {
       if (Object.prototype.hasOwnProperty.call(manifest.bg, k)) get(manifest.bg[k].src);
     }
-    return LP.assets;
+    return GP.assets;
   }
 
   /**
@@ -144,7 +144,7 @@
     return out;
   }
 
-  LP.assets = {
+  GP.assets = {
     boot: boot,
     charFrame: charFrame,
     bg: bg,

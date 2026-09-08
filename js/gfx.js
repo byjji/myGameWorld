@@ -1,5 +1,5 @@
 /**
- * L-Party 그리기 도우미 — 오프스크린 프리렌더 · 파티클 · 화면 흔들림
+ * Game-Party 그리기 도우미 — 오프스크린 프리렌더 · 파티클 · 화면 흔들림
  *
  * phase1 예산(js/config.js)을 지키기 위한 공용 자리다. 게임마다 따로 만들면
  * 상한이 게임 수만큼 늘어나 예산이 의미를 잃는다.
@@ -14,8 +14,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var C = LP.config;
+  var GP = global.GP || (global.GP = {});
+  var C = GP.config;
 
   var sheets = {};      // key -> { canvas, fw, fh, n }
   var order = [];       // 만든 순서. 상한을 넘으면 앞에서 버린다
@@ -157,7 +157,7 @@
     return { x: Math.sin(a) * mag * k, y: Math.cos(a * 1.7) * mag * k };
   }
 
-  LP.gfx = {
+  GP.gfx = {
     sheet: sheet,
     blit: blit,
     drop: drop,

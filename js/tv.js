@@ -1,5 +1,5 @@
 /**
- * L-Party TV 셸
+ * Game-Party TV 셸
  *
  * TV는 화면 전용이다. 입력을 받지 않는다 (PROJECT.md 1장).
  * 화면 전환은 폰이 보낸 메시지와 시간으로만 일어난다.
@@ -7,7 +7,7 @@
  * 화면 순서 (PROJECT.md 7장):
  *   대기 → 캐릭터 선택 → 동작 시연 → 캘리브레이션 → 카운트다운 → 플레이 → 결과
  *
- * 미니게임은 LP.games 레지스트리에 등록된 것을 그대로 실행한다.
+ * 미니게임은 GP.games 레지스트리에 등록된 것을 그대로 실행한다.
  * 게임을 붙이거나 떼도 이 파일은 고치지 않는다.
  *
  * 문법 수준: ES5
@@ -15,15 +15,15 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var C = LP.config;
+  var GP = global.GP || (global.GP = {});
+  var C = GP.config;
 
   /* 미니게임 레지스트리 */
 
   var games = {};
   var order = [];
 
-  LP.games = {
+  GP.games = {
     /**
      * def = {
      *   name:   화면에 뜨는 이름
@@ -72,7 +72,7 @@
      * 다 걸러지면 조건을 하나씩 푼다. 뽑을 것이 없어 멈추는 쪽이 더 나쁘다.
      */
     pool: function (lastId) {
-      var vis = LP.games.visible();
+      var vis = GP.games.visible();
       var lastLoad = (lastId && games[lastId]) ? games[lastId].load : null;
       var out = [], i;
 
@@ -100,7 +100,7 @@
 
     /** 룰렛 한 번. rnd를 주입할 수 있게 열어둔다 — 시험에서 100판을 돌려본다. */
     roll: function (lastId, rnd) {
-      var p = LP.games.pool(lastId);
+      var p = GP.games.pool(lastId);
       return p[Math.floor((rnd || Math.random)() * p.length)];
     }
   };
@@ -124,7 +124,7 @@
     log: []               // 디버그용 최근 이벤트
   };
 
-  LP.tv = tv;
+  GP.tv = tv;
 
   function qs(key, dflt) {
     var m = global.location.search.match(new RegExp('[?&]' + key + '=([^&]+)'));
@@ -193,12 +193,12 @@
   /* 통신 */
 
   function connect() {
-    var useDev = LP.devlink && LP.devlink.enabled();
+    var useDev = GP.devlink && GP.devlink.enabled();
 
-    tv.net = new LP.net.Net({
-      url: qs('relay', LP.net.defaultUrl()),
+    tv.net = new GP.net.Net({
+      url: qs('relay', GP.net.defaultUrl()),
       role: 'tv',
-      socketFactory: useDev ? LP.devlink.factory : undefined
+      socketFactory: useDev ? GP.devlink.factory : undefined
     });
 
     tv.net.on('status', function (s) { tv.status = s.status; });
@@ -311,12 +311,12 @@
     pick: 0            // 직접 선택용 커서 (기울기로 움직인다)
   };
 
-  LP.tv.roulette = roul;
+  GP.tv.roulette = roul;
 
   function startSpin() {
     if (roul.phase !== 'idle') return;
-    var vis = LP.games.visible();
-    var target = LP.games.roll(tv.lastGameId);
+    var vis = GP.games.visible();
+    var target = GP.games.roll(tv.lastGameId);
     var ti = vis.indexOf(target);
     if (ti < 0) return;
 
@@ -333,7 +333,7 @@
   function selectMotion(m) {
     if (roul.phase !== 'idle') return;
     if (m.a === 'punch') {
-      var vis = LP.games.visible();
+      var vis = GP.games.visible();
       startGame(vis[roul.pick % vis.length]);
       return;
     }
@@ -343,7 +343,7 @@
   /** 어른이 카드를 가리키는 용도. 5세는 룰렛만 쓴다. */
   function selectTilt(m) {
     if (roul.phase !== 'idle') return;
-    var vis = LP.games.visible();
+    var vis = GP.games.visible();
     var v = m.v || 0;
     var idx = Math.round((v + 1) / 2 * (vis.length - 1));
     roul.pick = Math.max(0, Math.min(vis.length - 1, idx));
@@ -356,13 +356,13 @@
     round: 0,             // 끝난 판 수
     pieces: {}            // playerId -> { pos, stars, steps, shown }
   };
-  LP.tv.session = session;
+  GP.tv.session = session;
 
   var boardAnim = { plan: [], i: 0, k: 0, acc: 0, done: false };
 
   function pieceOf(id) {
     if (!session.pieces[id]) {
-      var p = LP.board.newPiece();
+      var p = GP.board.newPiece();
       p.shown = 0;
       session.pieces[id] = p;
     }
@@ -383,7 +383,7 @@
    */
   function beginBoard() {
     var scores = (tv.game && tv.game.getScore) ? tv.game.getScore() : [];
-    var rk = LP.board.ranks(scores);
+    var rk = GP.board.ranks(scores);
     var par = tv.game ? tv.game.par : 0;
 
     session.round++;
@@ -394,8 +394,8 @@
       var piece = pieceOf(id);
       var from = piece.pos;
       var before = piece.steps || 0;
-      var n = LP.board.stepsFor(rk[id], scores[i].score, par);
-      var events = LP.board.advance(piece, n);
+      var n = GP.board.stepsFor(rk[id], scores[i].score, par);
+      var events = GP.board.advance(piece, n);
 
       piece.shown = from;
       boardAnim.plan.push({
@@ -429,9 +429,9 @@
 
     if (a.k < cur.moved) {
       a.k++;
-      piece.shown = (cur.from + a.k) % LP.board.TUNE.CELLS;
+      piece.shown = (cur.from + a.k) % GP.board.TUNE.CELLS;
 
-      var kind = LP.board.types[piece.shown];
+      var kind = GP.board.types[piece.shown];
       if (kind === 'star') fx('star', cur.id);
       else if (kind === 'bowser') fx('hit', cur.id);
       else fx('step', cur.id);
@@ -455,7 +455,7 @@
   }
 
   function updateSelect(dt) {
-    var vis = LP.games.visible();
+    var vis = GP.games.visible();
     if (!vis.length) return;
 
     if (roul.phase === 'idle') {
@@ -485,9 +485,9 @@
   /* 게임 시작 흐름 */
 
   function startGame(id) {
-    id = id || FORCED_GAME || LP.games.visible()[0];
+    id = id || FORCED_GAME || GP.games.visible()[0];
     tv.gameId = id;
-    tv.game = LP.games.get(id);
+    tv.game = GP.games.get(id);
     if (!tv.game) { goto('wait'); return; }
     roul.phase = 'idle';
     goto('demo');
@@ -504,9 +504,9 @@
    */
   function fx(name, to) {
     var heard = false;
-    if (LP.sfx) {
-      LP.sfx.play(name);
-      heard = LP.sfx.audible();
+    if (GP.sfx) {
+      GP.sfx.play(name);
+      heard = GP.sfx.audible();
     }
     // TV에서 소리가 안 나면(자동재생 정책) 폰에게 대신 내달라고 한다.
     // TV는 입력을 받지 않아 제스처를 만들 수가 없다 — 폰은 코드를 누르며 이미 만들었다.
@@ -518,9 +518,9 @@
     if (tv.game.init) {
       tv.game.init({
         config: C,
-        tuning: LP.tuning,
-        chars: LP.chars,
-        gfx: LP.gfx,
+        tuning: GP.tuning,
+        chars: GP.chars,
+        gfx: GP.gfx,
         players: tv.players,
         note: note,
         fx: fx,
@@ -574,7 +574,7 @@
       bg(ctx);
       center(ctx, '캐릭터 고르기', SAFE.y + 70, 46, '#ffffff');
 
-      var list = LP.chars.list;
+      var list = GP.chars.list;
       var gap = SAFE.w / list.length;
       for (var i = 0; i < list.length; i++) {
         var x = SAFE.x + gap * (i + 0.5);
@@ -582,7 +582,7 @@
         for (var j = 0; j < tv.players.length; j++) {
           if (tv.players[j]['char'] === list[i].id) taken = tv.players[j];
         }
-        LP.chars.draw(ctx, list[i].id, x, C.HEIGHT * 0.66, 240, 'idle');
+        GP.chars.draw(ctx, list[i].id, x, C.HEIGHT * 0.66, 240, 'idle');
         center2(ctx, list[i].name, x, C.HEIGHT * 0.66 + 46, 28, taken ? '#ffd23b' : '#5a6b85');
         if (taken) center2(ctx, taken.name, x, C.HEIGHT * 0.66 + 82, 24, '#ffd23b');
       }
@@ -600,8 +600,8 @@
       bg(ctx, '#141d33');
       center(ctx, '무슨 놀이 할까?', SAFE.y + 64, 44, '#ffffff');
 
-      var vis = LP.games.visible();
-      var pool = LP.games.pool(tv.lastGameId);
+      var vis = GP.games.visible();
+      var pool = GP.games.pool(tv.lastGameId);
       var n = vis.length || 1;
       var cw = Math.min(260, SAFE.w / n - 20);
       var ch = 300;
@@ -610,7 +610,7 @@
       var here = ((Math.floor(roul.cursor) % n) + n) % n;
 
       for (var i = 0; i < vis.length; i++) {
-        var g = LP.games.get(vis[i]);
+        var g = GP.games.get(vis[i]);
         var x = SAFE.x + gap * (i + 0.5) - cw / 2;
         var live = pool.indexOf(vis[i]) >= 0;
 
@@ -717,7 +717,7 @@
         // 시상대. 꼴등은 없다 (PROJECT.md 6장).
         ctx.fillStyle = '#2f3f60';
         ctx.fillRect(x - 90, C.HEIGHT * 0.72, 180, 120);
-        LP.chars.draw(ctx, p['char'], x, C.HEIGHT * 0.72, 220, 'idle');
+        GP.chars.draw(ctx, p['char'], x, C.HEIGHT * 0.72, 220, 'idle');
         center2(ctx, p.name, x, C.HEIGHT * 0.72 + 60, 30, '#ffffff');
 
         // 점수 카운트업. 1.2초에 걸쳐 올라간다 — 숫자가 튀어나오면 본 것 같지가 않다.
@@ -736,7 +736,7 @@
       bg(ctx, '#101b30');
 
       var r = { x: SAFE.x + 90, y: SAFE.y + 110, w: SAFE.w - 180, h: SAFE.h - 240 };
-      var pts = LP.board.layout(r);
+      var pts = GP.board.layout(r);
       var i;
 
       // 칸
@@ -760,7 +760,7 @@
         var k = atCell[pc.shown] || 0;
         atCell[pc.shown] = k + 1;
         // 칸 위에 선다. 칸을 덮고 서면 무슨 칸에 있는지가 안 보인다.
-        LP.chars.draw(ctx, pl['char'], cell.x + k * 26 - 12, cell.y - 6, 92, 'idle');
+        GP.chars.draw(ctx, pl['char'], cell.x + k * 26 - 12, cell.y - 6, 92, 'idle');
       }
 
       center(ctx, session.round + ' / ' + ROUNDS + ' 판', SAFE.y + 56, 40, '#8ea2c0');
@@ -777,7 +777,7 @@
         popConfetti();
       }
 
-      var list = LP.board.standings(session.pieces);
+      var list = GP.board.standings(session.pieces);
       center(ctx, '오늘의 파티', SAFE.y + 60, 46, '#8ea2c0');
 
       var gap = SAFE.w / Math.max(list.length, 1);
@@ -789,7 +789,7 @@
         var top = C.HEIGHT - SAFE.y - podium;
         ctx.fillStyle = list[i].rank === 0 ? '#ffd23b' : '#2f3f60';
         ctx.fillRect(x - 95, top, 190, podium);
-        LP.chars.draw(ctx, p['char'], x, top, 230, 'idle');
+        GP.chars.draw(ctx, p['char'], x, top, 230, 'idle');
 
         // 별은 머리 위, 어두운 배경에 올린다. 금색 단 위에 금색 별을 쓰면 안 보인다.
         center2(ctx, starText(list[i].stars), x, top - 250, 40, '#ffd23b');
@@ -804,11 +804,11 @@
 
   /* 결과 화면 폭죽. 미리 그린 조각을 포물선으로 던지는 것뿐이다 (PROJECT.md 2장) */
 
-  var confetti = new (LP.gfx.Particles)(C.MAX_PARTICLES);
+  var confetti = new (GP.gfx.Particles)(C.MAX_PARTICLES);
   var CONFETTI_COLORS = ['#ffd23b', '#3bff7a', '#4b7be3', '#ff6b6b', '#ffffff', '#f2b6d0'];
 
   function popConfetti() {
-    LP.gfx.sheet('confetti', CONFETTI_COLORS.length, 18, 18, function (c2, i) {
+    GP.gfx.sheet('confetti', CONFETTI_COLORS.length, 18, 18, function (c2, i) {
       c2.fillStyle = CONFETTI_COLORS[i];
       c2.save();
       c2.translate(9, 9);
@@ -864,7 +864,7 @@
       // 접속 순간 아래에서 올라오는 등장 연출
       var age = Math.min((tv.t - p.joinedAt) / 0.4, 1);
       var lift = (1 - age) * 80;
-      LP.chars.draw(ctx, p['char'], x0 + i * gap, y + lift, 150, 'idle');
+      GP.chars.draw(ctx, p['char'], x0 + i * gap, y + lift, 150, 'idle');
       // 끊긴 사람은 이름을 흐리게 둔다. 사라지지는 않는다 — 돌아올 자리다.
       center2(ctx, p.gone ? p.name + ' (끊김)' : p.name, x0 + i * gap, y + 34 + lift, 26,
               p.gone ? '#5a6b85' : (p.ready ? '#3bff7a' : '#8ea2c0'));
@@ -881,7 +881,7 @@
 
     var x = C.WIDTH / 2;
     if (motion === 'tilt') x += Math.sin(t * 2) * 220;
-    LP.chars.draw(ctx, chr, x, C.HEIGHT * 0.78, 320, pose);
+    GP.chars.draw(ctx, chr, x, C.HEIGHT * 0.78, 320, pose);
   }
 
   /* 연결 상태 표시 — 어느 화면에서든 위에 덮어 그린다 */
@@ -889,11 +889,11 @@
   function drawStatus(ctx) {
     // 튜닝을 덮어쓴 채로 돌고 있으면 그 사실을 항상 보이게 둔다.
     // 켜둔 걸 잊고 "왜 이상하지"를 하는 상황이 제일 나쁘다.
-    if (LP.tune && LP.tune.has()) {
+    if (GP.tune && GP.tune.has()) {
       ctx.textAlign = 'right';
-      ctx.fillStyle = LP.tune.rejected().length ? '#ff7b72' : '#ffd23b';
+      ctx.fillStyle = GP.tune.rejected().length ? '#ff7b72' : '#ffd23b';
       ctx.font = 'bold 20px monospace';
-      ctx.fillText(LP.tune.summary(), C.WIDTH - SAFE.x, C.HEIGHT - 10);
+      ctx.fillText(GP.tune.summary(), C.WIDTH - SAFE.x, C.HEIGHT - 10);
       ctx.textAlign = 'left';
     }
 
@@ -908,7 +908,7 @@
 
   // 시험이 화면을 하나씩 그려보기 위한 자리.
   // 안전영역 밖으로 나간 글자와 fillText 개수는 눈으로 세면 반드시 놓친다 (phase9).
-  LP.tv._test = {
+  GP.tv._test = {
     screens: screens,
     beginBoard: beginBoard,
     toSelect: toSelect,
@@ -923,20 +923,20 @@
 
   /* 시작 */
 
-  LP.tv.start = function (canvas) {
+  GP.tv.start = function (canvas) {
     var ctx = canvas.getContext('2d');
 
     // 그림을 받기 시작한다. 기다리지 않는다 — 도착할 때까지는 임시 도형으로 그려진다.
-    if (LP.assets) LP.assets.boot(LP.assetManifest);
+    if (GP.assets) GP.assets.boot(GP.assetManifest);
 
     // 주소로 넘어온 게임별 튜닝을 적용한다 (js/tuning.js 현장 오버라이드).
-    // 판정 임계값(LP.tuning)은 tuning.js가 스스로 적용하고, 게임 값은 여기서 붙인다 —
+    // 판정 임계값(GP.tuning)은 tuning.js가 스스로 적용하고, 게임 값은 여기서 붙인다 —
     // 게임이 다 등록된 뒤여야 하기 때문이다.
-    if (LP.tune) {
-      var ids = LP.games.ids();
+    if (GP.tune) {
+      var ids = GP.games.ids();
       for (var gi = 0; gi < ids.length; gi++) {
-        var g = LP.games.get(ids[gi]);
-        if (g && g.tune) LP.tune.apply(g.tune, ids[gi]);
+        var g = GP.games.get(ids[gi]);
+        if (g && g.tune) GP.tune.apply(g.tune, ids[gi]);
       }
     }
 
@@ -946,7 +946,7 @@
 
     connect();
 
-    LP.loop.start({
+    GP.loop.start({
       ctx: ctx,
       update: function (dt) {
         tv.t += dt;
@@ -979,7 +979,7 @@
         drawStatus(ctx);
 
         // BGM은 화면 성격을 따라간다. 같은 이름이면 끊기지 않는다.
-        if (LP.sfx) LP.sfx.bgm(BGM_FOR[tv.screen] || 'lobby');
+        if (GP.sfx) GP.sfx.bgm(BGM_FOR[tv.screen] || 'lobby');
       }
     });
 

@@ -1,4 +1,4 @@
-# L-Party 정적 배포 (Netlify)
+# Game-Party 정적 배포 (Netlify)
 #
 # 빌드 단계 없음. 바닐라 JS를 그대로 올린다 (PROJECT.md 2장).
 # 루트(/)에서 TV 화면이 열려야 한다 — TV 리모컨으로 주소를 치는 일을

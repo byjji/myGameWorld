@@ -17,8 +17,8 @@ const sb = vm.createContext(win);
 for (const f of ['js/tuning.js', 'js/motion.js', 'js/calib.js', 'js/net.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sb, { filename: f });
 }
-const LP = win.LP;
-const T = LP.tuning;
+const GP = win.GP;
+const T = GP.tuning;
 
 /* 가짜 WebSocket */
 const sockets = [];
@@ -61,7 +61,7 @@ function check(name, actual, expect) {
 
 function makeNet(role) {
   sockets.length = 0;
-  return new LP.net.Net({ url: 'wss://relay.test/', role, socketFactory: u => new FakeWS(u) });
+  return new GP.net.Net({ url: 'wss://relay.test/', role, socketFactory: u => new FakeWS(u) });
 }
 
 /* 1. 접속 URL 형식 */
@@ -122,7 +122,7 @@ check('60Hz 입력 → ' + T.TILT_SEND_HZ + 'Hz 이하로 전송 (실제 ' + til
 const n8 = makeNet('play');
 n8.connect('2345');
 sockets[0].open();
-const det = new LP.motion.Detector();
+const det = new GP.motion.Detector();
 det.setBaseline({ gx: 0, gy: 1, gz: 0, pitch0: 0, roll0: 0 });
 det.setEnabled({ jump: false });
 n8.bindDetector(det);
@@ -148,9 +148,9 @@ check('motion 메시지 형식', Object.keys(motions[0]).sort(), ['a', 'p', 't']
 check('세기 p는 0~1', motions[0].p >= 0 && motions[0].p <= 1, true);
 
 /* 9. 캘리브레이션 — 가만히 서 있으면 기준 자세가 나온다 */
-const det9 = new LP.motion.Detector();
+const det9 = new GP.motion.Detector();
 let calibResult;
-LP.calib.run(det9, { ms: 1000, onDone: (err, b) => { calibResult = { err, b }; } });
+GP.calib.run(det9, { ms: 1000, onDone: (err, b) => { calibResult = { err, b }; } });
 let ct = 0;
 for (let i = 0; i < 70; i++) {                 // 약 1.17초치
   det9.feed({ t: ct, ax: 0.1, ay: 9.7, az: 0.2, pitch: 12, roll: -3 });
@@ -162,9 +162,9 @@ check('중력 단위벡터 크기 1', Math.round(Math.hypot(calibResult.b.gx, ca
 check('판정기에 기준이 들어감', det9.baseline.provisional, false);
 
 /* 10. 보정 중 흔들리면 거부한다 */
-const det10 = new LP.motion.Detector();
+const det10 = new GP.motion.Detector();
 let r10;
-LP.calib.run(det10, { ms: 1000, onDone: (err) => { r10 = err; } });
+GP.calib.run(det10, { ms: 1000, onDone: (err) => { r10 = err; } });
 let ct2 = 0;
 for (let i = 0; i < 70; i++) {
   det10.feed({ t: ct2, ax: Math.sin(i) * 6, ay: 9.7, az: 0, pitch: 12 + Math.sin(i) * 20, roll: -3 });
@@ -173,9 +173,9 @@ for (let i = 0; i < 70; i++) {
 check('흔들리면 재보정 요구', !!(r10 && r10.message), true);
 
 /* 11. 표본이 모자라면 신뢰하지 않는다 */
-const det11 = new LP.motion.Detector();
+const det11 = new GP.motion.Detector();
 let r11;
-LP.calib.run(det11, { ms: 500, onDone: (err) => { r11 = err; } });
+GP.calib.run(det11, { ms: 500, onDone: (err) => { r11 = err; } });
 let ct3 = 0;
 for (let i = 0; i < 5; i++) { det11.feed({ t: ct3, ax: 0, ay: 9.8, az: 0, pitch: 0, roll: 0 }); ct3 += 200; }
 check('표본 부족이면 거부', !!(r11 && r11.message), true);

@@ -16,8 +16,8 @@
 (function (global) {
   'use strict';
 
-  var LP = global.LP || (global.LP = {});
-  var T = LP.tuning;
+  var GP = global.GP || (global.GP = {});
+  var T = GP.tuning;
 
   var HZ = 60;
   var DT = 1000 / HZ;
@@ -114,6 +114,6 @@
     };
   }
 
-  LP.devsensor = { attach: attach };
+  GP.devsensor = { attach: attach };
 
 })(window);

@@ -1,4 +1,4 @@
-# L-Party 릴레이 서버 — Synology NAS Docker용
+# Game-Party 릴레이 서버 — Synology NAS Docker용
 #
 # slim을 쓰는 이유: NAS 저장공간과 빌드 시간을 아낀다. 컴파일이 필요한 패키지가 없다.
 FROM python:3.12-slim
