@@ -33,6 +33,14 @@
   var BACKOFF_MS = [500, 1000, 2000, 4000, 8000];   // 재접속 지수 백오프
   var PING_MS = 25000;                              // 프록시 idle timeout 방지
 
+  // 집 NAS의 릴레이. Synology 역방향 프록시가 8443에서 호스트 이름으로 갈라
+  // 127.0.0.1:8181 컨테이너로 넘긴다 (docs/deploy.md).
+  // 옮기게 되면 이 한 줄만 고친다. 주소로 덮어쓰려면 `?relay=wss://...`.
+  var RELAY = 'wss://relay.ji-fam.synology.me:8443';
+
+  // 개발 PC에서 연 경우. 이때만 현재 호스트를 쓴다.
+  var LOCAL = /^(localhost|127\.0\.0\.1|\[?::1\]?|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
   /**
    * opts = {
    *   url:           'wss://host'  — 뒤에 /ws/{code}?role= 을 붙인다
@@ -269,12 +277,28 @@
   GP.net = {
     Net: Net,
 
-    /** 현재 페이지 기준 기본 릴레이 주소. 정적 파일은 Netlify, WS는 NAS라 따로 준다. */
+    /**
+     * 기본 릴레이 주소.
+     *
+     * 정적 파일은 Netlify, WebSocket은 집 NAS라 호스트가 다르다.
+     * 예전에는 현재 호스트를 썼는데, 그러면 Netlify 주소로 붙으려 해서 반드시 실패했다.
+     * TV 리모컨으로 `?relay=wss://...`를 칠 수는 없으므로 여기에 박는다 (docs/deploy.md).
+     *
+     * 순서
+     *   1. `?relay=` 가 있으면 그것. 릴레이를 옮기거나 다른 곳을 시험할 때 쓴다
+     *   2. 로컬에서 열었으면 현재 호스트. 개발 PC에서 릴레이를 같이 띄운 경우다
+     *   3. 그 외에는 RELAY
+     */
     defaultUrl: function () {
       var m = global.location.search.match(/[?&]relay=([^&]+)/);
       if (m) return decodeURIComponent(m[1]);
-      var proto = global.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return proto + '//' + global.location.host;
+
+      var host = global.location.hostname || '';
+      if (LOCAL.test(host)) {
+        var proto = global.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return proto + '//' + global.location.host;
+      }
+      return RELAY;
     }
   };
 
