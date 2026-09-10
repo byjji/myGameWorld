@@ -658,8 +658,12 @@
 
     calib: function (ctx) {
       bg(ctx);
-      center(ctx, '폰을 가슴에 대고', SAFE.y + 140, 56, '#ffffff');
-      center(ctx, '똑바로 서세요', SAFE.y + 220, 56, '#ffffff');
+
+      // 쥐는 법이 다른 게임이 있다. 레이싱은 가슴에 대면 핸들을 돌릴 수가 없다 (phase8).
+      // 기준 자세가 실제 플레이 자세와 다르면 보정값이 통째로 어긋난다.
+      var hint = (tv.game && tv.game.calibHint) || ['폰을 가슴에 대고', '똑바로 서세요'];
+      center(ctx, hint[0], SAFE.y + 140, 56, '#ffffff');
+      center(ctx, hint[1] || '', SAFE.y + 220, 56, '#ffffff');
 
       var r = 0, n = 0;
       for (var i = 0; i < tv.players.length; i++) {
@@ -938,6 +942,9 @@
         var g = GP.games.get(ids[gi]);
         if (g && g.tune) GP.tune.apply(g.tune, ids[gi]);
       }
+      // 도로 렌더러는 게임이 아니라 공용 부품이다. 짧은 이름으로 따로 연다 —
+      // 프레임이 모자라면 조카 집 TV 리모컨으로 ?tune=road.DRAW_SEGS:70 을 친다 (phase8).
+      if (GP.pseudo3d) GP.tune.apply(GP.pseudo3d.TUNE, 'road');
     }
 
     // devicePixelRatio를 곱하지 않는다. TV에서 backing store를 키우면 그대로 부하가 된다.

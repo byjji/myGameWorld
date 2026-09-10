@@ -28,6 +28,18 @@
     tilt: '좌우로 기울이기', all: '아무 동작이나'
   };
 
+  /**
+   * 캘리브레이션 안내. 게임 id로 고른다.
+   *
+   * 기준 자세는 실제로 플레이할 자세여야 한다. 레이싱만 쥐는 법이 다르다 —
+   * 가슴에 대고 기준을 잡은 뒤 핸들처럼 들면 그 각도 차이가 통째로 조향에 들어간다
+   * (phase8). TV 쪽 문구는 js/games/racing.js의 calibHint에 있다. 같이 고친다.
+   */
+  var CALIB_TEXT = {
+    racing: '폰을 두 손으로 잡고<br>핸들처럼 들어요'
+  };
+  var CALIB_DEFAULT = '폰을 가슴에 대고<br>똑바로 서세요';
+
   function el(id) { return doc.getElementById(id); }
 
   /**
@@ -227,6 +239,8 @@
         setWait(LABEL[S.motion] || '', '이렇게 하는 거예요');
         break;
       case 'calib':
+        var ct = el('calib-title');
+        if (ct) ct.innerHTML = CALIB_TEXT[m.game] || CALIB_DEFAULT;
         show('calib');
         runCalib();
         break;

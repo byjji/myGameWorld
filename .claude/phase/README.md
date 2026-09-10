@@ -29,7 +29,7 @@
 | phase5 | 로프 오르기 + NPC 러버밴딩 끝. 균형은 시뮬레이션까지만 확인 |
 | phase6 | 해머 피하기 + 룰렛 끝. 3판 세션이 개발 PC에서 굴러간다 → `docs/playtest-2.md` |
 | phase7 | 블록깨기 끝 |
-| phase8 | **레이싱. 맨 마지막으로 미뤘다** (사용자 지시) |
+| phase8 | 레이싱 끝. 도로 렌더러·코스 2개·NPC 경주. 남은 것은 전부 실기 → `docs/playtest-racing.md` |
 | phase9 | 세션 통합 끝. 보드·총점·사운드·안정화. 남은 것은 전부 실기 → `docs/playtest-final.md` |
 
 phase3을 phase2보다 먼저 만든 이유는 릴레이 서버를 기다리면 셸이 몇 주 멈추기 때문이다.
@@ -52,11 +52,12 @@ phase3을 phase2보다 먼저 만든 이유는 릴레이 서버를 기다리면 
 python test/relay-test.py     릴레이 서버
 node   test/motion-test.js    동작 판정
 node   test/net-test.js       통신·보정
-node   test/games-test.js     미니게임 4종 + NPC + 룰렛 + 보드 + 안정화 (176항목)
+node   test/games-test.js     미니게임 5종 + 도로 렌더러 + NPC + 룰렛 + 보드 + 안정화 (277항목)
 
 GP_STATIC=. python server/main.py
   → http://127.0.0.1:8000/dev/pair.html                     TV와 폰을 한 탭에 (?dev=1)
   → http://127.0.0.1:8000/tv/index.html?fps=1&game=hammer   게임 하나만 반복
+  → http://127.0.0.1:8000/tools/road-bench_1.html           도로 렌더러만 (배포본은 /road)
 ```
 
 `?game=<id>`를 주면 선택 화면을 건너뛰고 그 게임만 반복한다. 개발용이다.

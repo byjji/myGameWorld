@@ -35,6 +35,12 @@
   to = "/tools/tv-bench_1.html"
   status = 200
 
+# 레이싱 도로 렌더러 단독 측정 (phase8). 게임 없이 라인 수·스프라이트 상한을 잡는다.
+[[redirects]]
+  from = "/road"
+  to = "/tools/road-bench_1.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

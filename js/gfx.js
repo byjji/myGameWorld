@@ -163,6 +163,11 @@
     drop: drop,
     has: function (key) { return !!sheets[key]; },
     count: function () { return order.length; },
+    /** 프레임 한 장의 크기. 원근 스케일을 역산할 때 쓴다 (js/pseudo3d.js). */
+    size: function (key) {
+      var s = sheets[key];
+      return s ? { fw: s.fw, fh: s.fh, n: s.n } : null;
+    },
     Particles: Particles,
     shake: shake
   };

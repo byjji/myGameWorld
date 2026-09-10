@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game-Party Road Bench 1</title>
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon/gp-192.png">
+<link rel="apple-touch-icon" href="/assets/icon/gp-192.png">
+
+<!--
+  레이싱 도로 렌더러(js/pseudo3d.js)를 게임 없이 단독으로 띄우는 페이지 (phase8 검증 방법).
+
+  여기서 정하는 것은 두 숫자다.
+    DRAW_SEGS    한 프레임에 그리는 세그먼트 수 (멀리까지 보이는 거리)
+    SPRITE_MAX   한 프레임에 그리는 스프라이트 수
+
+  조카 집 TV에서 30fps가 유지되는 값을 찾은 뒤, 그 값을 js/pseudo3d.js의 TUNE에 적는다.
+  현장에서 임시로 바꾸려면 게임 주소에 ?tune=road.DRAW_SEGS:70 을 붙인다.
+
+  조작: 좌우 = 항목 이동, 상하 = 값 조절, 확인/0 = 계측 초기화, 1~4 = 항목 직접 선택
+  TV 브라우저는 캐시가 강하다. 내용을 고치면 road-bench_2.html 로 새로 올린다.
+-->
+<style>
+  html, body { margin:0; padding:0; background:#000; overflow:hidden; height:100%; }
+  #cv { display:block; width:100vw; height:100vh; }
+  #diag {
+    position:absolute; left:5%; bottom:6%; width:64%;
+    color:#fff; font:22px/1.5 monospace; white-space:pre-wrap;
+    text-shadow:0 2px 0 #000;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv" width="1280" height="720"></canvas>
+<div id="diag"></div>
+
+<script src="../js/config.js?v=2"></script>
+<script src="../js/fps.js?v=2"></script>
+<script src="../js/gfx.js?v=2"></script>
+<script src="../js/chars.js?v=2"></script>
+<script src="../js/pseudo3d.js?v=2"></script>
+<script src="../js/courses.js?v=2"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var C = GP.config;
+  var P3 = GP.pseudo3d;
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var diag = document.getElementById('diag');
+
+  // 벤치에서는 쿼리스트링과 무관하게 항상 켠다.
+  GP.fps.init(ctx, true);
+
+  /* 코스 */
+
+  var courseIds = GP.courses.ids();
+  var courseIdx = 0;
+  var track = new P3.Track(GP.courses[courseIds[courseIdx]]);
+
+  /* 스프라이트 — 카트 대신 나무 한 종류로 개수만 본다.
+     그림 내용이 아니라 blit 횟수가 프레임을 먹는다 (phase1). */
+
+  GP.gfx.sheet('rb-tree', 2, 120, 180, function (c2, i) {
+    c2.fillStyle = '#6b4a24';
+    c2.fillRect(52, 110, 16, 70);
+    c2.fillStyle = i ? '#2f7d3c' : '#3b9147';
+    c2.beginPath();
+    c2.moveTo(60, 6);
+    c2.lineTo(112, 120);
+    c2.lineTo(8, 120);
+    c2.closePath();
+    c2.fill();
+  });
+
+  var props = [];
+  function buildProps(every) {
+    props = [];
+    for (var i = every; i < track.segs.length; i += every) {
+      props.push({
+        z: i * P3.TUNE.SEG_LEN,
+        x: ((i / every) % 2 ? 1 : -1) * 1.6,
+        key: 'rb-tree', frame: i % 2, w: 2200
+      });
+    }
+  }
+  buildProps(8);
+
+  /* 조절 항목 */
+
+  var items = [
+    { name: 'DRAW_SEGS   (그리는 세그먼트 수)', get: function () { return P3.TUNE.DRAW_SEGS; },
+      set: function (v) { P3.TUNE.DRAW_SEGS = clamp(v, 20, 240); track.pal = null; }, step: 10 },
+    { name: 'DETAIL_SEGS (갓돌·중앙선 구간)',  get: function () { return P3.TUNE.DETAIL_SEGS; },
+      set: function (v) { P3.TUNE.DETAIL_SEGS = clamp(v, 0, 240); }, step: 4 },
+    { name: 'SPRITE_MAX  (스프라이트 상한)',   get: function () { return P3.TUNE.SPRITE_MAX; },
+      set: function (v) { P3.TUNE.SPRITE_MAX = clamp(v, 0, 60); }, step: 2 },
+    { name: 'HILLS       (0이면 평지)',        get: function () { return P3.TUNE.HILLS; },
+      set: function (v) { P3.TUNE.HILLS = clamp(v, 0, 1); rebuild(); }, step: 1 }
+  ];
+  var itemIdx = 0;
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  function rebuild() {
+    track = new P3.Track(GP.courses[courseIds[courseIdx]]);
+    buildProps(8);
+    GP.fps.reset();
+  }
+
+  /* 루프 — 코스를 자동으로 달린다. 조작은 벤치의 관심사가 아니다. */
+
+  var t = 0, last = 0, z = 0, sky = 0, stat = { segs: 0, sprites: 0 };
+  var SPEED = 7200;
+
+  function frame(ts) {
+    var dt = last ? Math.min((ts - last) / 1000, C.MAX_DELTA) : 0;
+    last = ts;
+    t += dt;
+
+    GP.fps.frameStart();
+
+    z = track.wrap(z + SPEED * dt);
+    sky -= track.curveAt(z) * P3.TUNE.SEG_LEN * 1.9 * dt;
+    var x = Math.sin(t * 0.6) * 0.5;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    stat = P3.render(ctx, track, { z: z, x: x, sky: sky }, props);
+
+    GP.fps.frameEnd();
+    GP.fps.draw(ctx);
+
+    var lines = [];
+    lines.push('코스 ' + track.name + '  (' + track.segs.length + ' 세그먼트, 이음매 '
+               + (track.seamOk() ? 'OK' : '어긋남') + ')');
+    for (var i = 0; i < items.length; i++) {
+      lines.push((i === itemIdx ? '▶ ' : '  ') + items[i].name + ' = ' + items[i].get());
+    }
+    lines.push('그린 세그먼트 ' + stat.segs + ' · 스프라이트 ' + stat.sprites);
+    diag.textContent = lines.join('\n');
+
+    requestAnimationFrame(frame);
+  }
+
+  /* 입력 (리모컨) */
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.keyCode;
+    var it = items[itemIdx];
+    if (k === 37) itemIdx = (itemIdx + items.length - 1) % items.length;       // 왼쪽
+    else if (k === 39) itemIdx = (itemIdx + 1) % items.length;                 // 오른쪽
+    else if (k === 38) { it.set(it.get() + it.step); GP.fps.reset(); }         // 위
+    else if (k === 40) { it.set(it.get() - it.step); GP.fps.reset(); }         // 아래
+    else if (k === 13 || k === 48) GP.fps.reset();                             // 확인 / 0
+    else if (k === 57) {                                                       // 9 = 코스 바꾸기
+      courseIdx = (courseIdx + 1) % courseIds.length;
+      z = 0;
+      rebuild();
+    } else if (k >= 49 && k <= 52) itemIdx = k - 49;                           // 1~4
+    e.preventDefault();
+  });
+
+  requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>

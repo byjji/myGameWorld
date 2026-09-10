@@ -84,6 +84,9 @@
    *   pacer:  true면 쿠파 역할 — 중반에 앞서고 막판에 따라잡힌다
    *   follow: 추격 배수. 주면 TUNE.FOLLOW 대신 쓴다
    *   unit:   동작 하나가 나아가는 거리(진행도 비율). 게임이 정한다
+   *   lead:   페이스메이커가 아닌 NPC가 지킬 거리(진행도). 음수면 뒤에서 달린다.
+   *           여럿이 나오는 게임에서 전부 같은 자리에 겹치는 것을 막고,
+   *           **맨 뒤 한 명을 확실히 뒤에 두는 데** 쓴다 (js/games/racing.js 꼴등 없음)
    * }
    */
   function Racer(opts) {
@@ -91,13 +94,14 @@
     this.pacer = !!opts.pacer;
     this.follow = opts.follow !== undefined ? opts.follow : TUNE.FOLLOW;
     this.unit = opts.unit || 1;
+    this.lead = opts.lead || 0;
     this.pos = 0;            // 진행도 0~1
     this.speed = 0;          // 마지막 프레임의 속도 (진행도/초). 연출에 쓴다
   }
 
   /** 중반에 얼마나 앞설지. 막판에는 음수가 되어 플레이어에게 따라잡힌다. */
   Racer.prototype.leadAt = function (p) {
-    if (!this.pacer) return 0;
+    if (!this.pacer) return this.lead;
     if (p < TUNE.LEAD_FROM) return 0;
     if (p < TUNE.LEAD_UNTIL) return TUNE.LEAD;
     var k = Math.min((p - TUNE.LEAD_UNTIL) / (1 - TUNE.LEAD_UNTIL), 1);

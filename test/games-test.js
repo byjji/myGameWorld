@@ -70,8 +70,9 @@ const GP = load([
   'js/config.js', 'js/tuning.js', 'js/gfx.js',
   'js/assets-manifest.js', 'js/assets.js', 'js/chars.js', 'js/npc.js',
   'js/board.js', 'js/tv.js',
+  'js/pseudo3d.js', 'js/courses.js',
   'js/games/jumprope.js', 'js/games/ropeclimb.js', 'js/games/hammer.js',
-  'js/games/blockbreak.js'
+  'js/games/blockbreak.js', 'js/games/racing.js'
 ]);
 
 /* ── 시험 도우미 ────────────────────────────────────── */
@@ -466,6 +467,313 @@ function testHammer() {
   ok('render/demo가 예외 없이 돈다', threw === null);
 }
 
+/* ══ 도로 렌더러 (유사 3D) ═══════════════════════════════ */
+
+function testPseudo3d() {
+  console.log('\n[도로 렌더러]');
+
+  const P3 = GP.pseudo3d;
+  const track = new P3.Track(GP.courses.meadow);
+
+  ok('세그먼트가 만들어진다', track.segs.length > 300);
+  eq('길이는 세그먼트 수 × 길이', track.length, track.segs.length * P3.TUNE.SEG_LEN);
+
+  // 랩을 도는 코스다. 끝 높이가 시작 높이와 다르면 결승선에서 화면이 튄다.
+  ok('이음매의 높이가 맞는다 (들판)', track.seamOk());
+  ok('이음매의 높이가 맞는다 (해변)', new P3.Track(GP.courses.beach).seamOk());
+
+  // 커브가 급하면 5세가 못 돈다. 코스를 새로 만들 때 여기서 걸린다.
+  let worst = 0;
+  for (const id of GP.courses.ids()) {
+    const t2 = new P3.Track(GP.courses[id]);
+    for (const s of t2.segs) worst = Math.max(worst, Math.abs(s.curve));
+  }
+  ok('가장 급한 커브가 6을 안 넘는다 (' + worst.toFixed(1) + ')', worst <= 6);
+
+  // 곡률은 서서히 붙는다. 갑자기 꺾이면 대응할 시간이 없다.
+  let jump = 0;
+  for (let i = 1; i < track.segs.length; i++) {
+    jump = Math.max(jump, Math.abs(track.segs[i].curve - track.segs[i - 1].curve));
+  }
+  ok('한 세그먼트에서 곡률이 튀지 않는다 (' + jump.toFixed(2) + ')', jump < 0.5);
+
+  // 랩을 넘어가도 좌표가 이어진다
+  eq('트랙 끝은 처음으로 돌아온다', track.wrap(track.length + 100), 100);
+  eq('뒤로 가도 접힌다', track.wrap(-100), track.length - 100);
+
+  // 투영 — 멀수록 위에 작게 그려진다. 이게 뒤집히면 도로가 하늘로 솟는다.
+  const near = { world: { y: 0, z: 1000 }, camera: {}, screen: {} };
+  const far = { world: { y: 0, z: 9000 }, camera: {}, screen: {} };
+  P3.project(near, 0, 1400, 0, 1, 1280, 720, 2400);
+  P3.project(far, 0, 1400, 0, 1, 1280, 720, 2400);
+  ok('먼 세그먼트가 화면 위에 온다', far.screen.y < near.screen.y);
+  ok('먼 세그먼트가 더 좁다', far.screen.w < near.screen.w);
+
+  // 그리는 양은 상수 하나로 줄어든다 — 실기에서 프레임이 모자랄 때 쓰는 손잡이다.
+  const cam = { z: 0, x: 0, sky: 0 };
+  const before = P3.TUNE.DRAW_SEGS;
+  P3.TUNE.DRAW_SEGS = 100; track.pal = null;
+  const many = P3.render(fakeCtx(), track, cam, []);
+  P3.TUNE.DRAW_SEGS = 30; track.pal = null;
+  const few = P3.render(fakeCtx(), track, cam, []);
+  ok('DRAW_SEGS를 낮추면 덜 그린다 (' + many.segs + ' → ' + few.segs + ')', few.segs < many.segs);
+  ok('낮춰도 도로는 그려진다', few.segs > 10);
+  P3.TUNE.DRAW_SEGS = before; track.pal = null;
+
+  // 스프라이트 상한. 넘겨도 상한까지만 그린다 (phase1 예산)
+  const lots = [];
+  for (let i = 0; i < 60; i++) {
+    lots.push({ z: i * P3.TUNE.SEG_LEN, x: 0, w: 1200, draw: function () {} });
+  }
+  const r = P3.render(fakeCtx(), track, cam, lots);
+  ok('스프라이트 상한을 넘지 않는다 (' + r.sprites + ')', r.sprites <= P3.TUNE.SPRITE_MAX);
+
+  // 카메라와 나란한 스프라이트는 원근 배율이 발산한다. 그리면 화면이 통째로 덮인다.
+  let widest = 0, drawn = 0;
+  function probe(z) {
+    widest = 0; drawn = 0;
+    P3.render(fakeCtx(), track, { z: 0, x: 0, sky: 0 }, [{
+      z: z, x: 0, w: 1500,
+      draw: function (c2, sx, sy, sw) { drawn++; widest = Math.max(widest, sw); }
+    }]);
+  }
+  probe(20);                                   // 카메라와 나란한 위치
+  eq('나란한 스프라이트는 아예 안 그린다', drawn, 0);
+  // 카메라 바로 밑(약 1,200 단위 안쪽)은 화면 아래로 잘려 도로 자체가 안 그려진다.
+  // 그 바깥의 가장 가까운 자리에서 본다.
+  probe(P3.TUNE.SEG_LEN * 10);
+  ok('가까운 것은 그린다', drawn === 1);
+  ok('그래도 화면 폭을 안 넘는다 (' + widest.toFixed(0) + 'px)',
+     widest > 0 && widest <= GP.config.WIDTH);
+
+  // 언덕을 꺼도 코스가 그대로 성립해야 한다 (부하 미달 시의 대응 수단)
+  const hills = P3.TUNE.HILLS;
+  P3.TUNE.HILLS = 0;
+  const flat = new P3.Track(GP.courses.meadow);
+  ok('언덕을 끄면 평지가 된다', flat.heightAt(0) === 0 && flat.seamOk());
+  eq('평지여도 길이는 같다', flat.length, track.length);
+  P3.TUNE.HILLS = hills;
+}
+
+/* ══ 레이싱 ═══════════════════════════════════════════ */
+
+function testRacing() {
+  console.log('\n[레이싱]');
+
+  const def = GP.games.get('racing');
+  const T = def._test;
+  const TUNE = T.TUNE;
+  const P3 = GP.pseudo3d;
+
+  eq('기울기만 구독한다', def.motion, 'tilt');
+  eq('하체 부하는 낮다', def.load, 'low');
+  eq('한 판 90초', def.duration, 90);
+
+  /** 한 판을 시늉한다. tilt는 초를 받아 -1~1을 돌려주는 함수다. */
+  function race(api, tilt, seconds, dt) {
+    dt = dt || 1 / 30;
+    for (let s = 0; s < seconds; s += dt) {
+      def.onTilt({ t: 'tilt', v: tilt ? tilt(s) : 0, from: 'p1' });
+      def.update(dt);
+      if (api.ended) return s;
+    }
+    return seconds;
+  }
+
+  // 1. 가속은 저절로 된다. 조카는 좌우만 한다 (PROJECT.md 5-5)
+  let api = makeApi();
+  def.init(api);
+  race(api, null, 3);
+  let s = T.state('p1');
+  ok('아무것도 안 해도 앞으로 간다', s.dist > 1000);
+  ok('최고 속도까지 알아서 오른다', s.speed >= TUNE.MAX_SPEED - 1);
+  eq('par는 완주 기준이다', def.par, TUNE.LAPS * TUNE.LAP_BONUS);
+
+  // 2. 기울기는 절대 위치다. 기울인 만큼 그 자리로 간다.
+  //    출발 직선(60세그먼트 = 12,000 단위) 안에서 본다 — 커브에 들어가면
+  //    원심력이 기준점을 옮기므로 "가운데"의 뜻이 달라진다 (아래 15번).
+  api = makeApi();
+  def.init(api);
+  race(api, () => 1, 1);
+  const right = T.state('p1').x;
+  ok('오른쪽으로 기울이면 오른쪽에 있다 (' + right.toFixed(2) + ')', right > 0.6);
+  race(api, () => 0, 1);
+  ok('직선에서 바로 세우면 가운데로 돌아온다', Math.abs(T.state('p1').x) < 0.2);
+  ok('아직 출발 직선 안이다', T.track().curveAt(T.state('p1').z) === 0);
+
+  // 3. 데드존 — 손이 떨려도 카트가 흔들리지 않는다
+  api = makeApi();
+  def.init(api);
+  race(api, () => TUNE.DEADZONE * 0.8, 0.6);
+  ok('데드존 안에서는 안 움직인다', Math.abs(T.state('p1').x) < 0.02);
+
+  // 4. 도로 밖은 느리다. 하지만 멈추지는 않는다.
+  //    기본 감도로는 끝까지 기울여도 도로 가장자리까지다 — 풀밭으로 나가려면
+  //    감도를 올리거나 커브에서 원심력에 밀려야 한다. 5세 기준으로 일부러 그렇게 뒀다.
+  const keepLvl = TUNE.SENS_LEVEL;
+  TUNE.SENS_LEVEL = 2;
+  api = makeApi();
+  def.init(api);
+  race(api, () => 1, 3);
+  s = T.state('p1');
+  ok('최대 감도로 기울이면 도로를 벗어난다 (' + s.x.toFixed(2) + ')', Math.abs(s.x) > 1);
+  ok('도로 밖에서는 상한이 낮다', s.speed <= TUNE.OFFROAD_MAX + 1);
+  ok('도로 밖에서도 멈추지는 않는다', s.speed > 0);
+  TUNE.SENS_LEVEL = keepLvl;
+
+  // 5. 벽은 상한이지 벌이 아니다 — 밖으로 못 나가고, 잠깐 느려지고, 끝
+  api = makeApi();
+  def.init(api);
+  s = T.state('p1');
+  s.speed = TUNE.MAX_SPEED;
+  s.x = 3;                         // 있을 수 없는 위치. 가드가 잡아야 한다
+  T.drive('p1', 1 / 30);
+  ok('벽 밖으로는 못 나간다', Math.abs(s.x) <= TUNE.WALL_X + 0.001);
+  ok('벽에 닿으면 느려진다', s.speed <= TUNE.WALL_SPEED + 1);
+  ok('벽에 닿아도 멈추지 않는다', s.speed > 0);
+  ok('벽 피드백을 보낸다', api.fxLog.indexOf('hit:p1') >= 0);
+
+  // 6. 랩과 완주. 90초 안에 끝나야 다음 화면으로 넘어간다 (phase8 완료 기준)
+  api = makeApi();
+  def.init(api);
+  const track = T.track();
+  const took = race(api, (t) => Math.sin(t) * 0.2, 90);
+  s = T.state('p1');
+  ok('90초 안에 완주한다 (' + took.toFixed(1) + '초)', s.finished > 0);
+  eq('랩을 다 돈다', s.lap, TUNE.LAPS);
+  ok('완주하면 결과로 넘어간다', api.ended > 0);
+  ok('완주 점수가 par에 닿는다', def.getScore()[0].score >= def.par);
+
+  // 7. 쿠파는 중반에 앞서고 막판에 따라잡힌다 (js/npc.js 러버밴딩)
+  ok('페이스메이커가 있다', T.npcs().length > 0 && T.npcs()[0].racer.pacer);
+  ok('골인할 때 쿠파는 뒤에 있다', T.npcs()[0].racer.pos < 1);
+
+  api = makeApi();
+  def.init(api);
+  race(api, null, 30);             // 중반까지만
+  const p = T.progress('p1');
+  ok('중반에는 쿠파가 앞선다', T.npcs()[0].racer.pos > p);
+
+  // 8. 꼴등 없음 — 못 달려도 맨 뒤 NPC는 앞서지 않는다 (해머의 레인 가드와 같은 자리)
+  api = makeApi();
+  def.init(api);
+  race(api, (t) => (t % 4 < 2 ? 1 : -1), 90);      // 좌우로만 흔드는 아이
+  s = T.state('p1');
+  const rank = T.rankOf('p1');
+  ok('진행도가 0.8을 넘겼다 (' + T.progress('p1').toFixed(2) + ')', T.progress('p1') > 0.8);
+  ok('꼴등이 아니다 (' + rank + '위 / ' + (T.npcs().length + 1) + '명)',
+     rank <= T.npcs().length);
+
+  // 9. 코인 — 지나가면 먹고, 같은 바퀴에 두 번은 안 먹는다
+  api = makeApi();
+  def.init(api);
+  s = T.state('p1');
+  const coin = T.coins()[0];
+  s.z = coin.z;
+  s.x = coin.x;
+  s.speed = 1000;
+  def.update(1 / 30);
+  eq('지나가면 코인을 먹는다', s.coins, 1);
+  const before = s.coins;
+  s.z = coin.z;
+  def.update(1 / 30);
+  eq('같은 바퀴에 두 번은 안 먹는다', s.coins, before);
+  ok('코인 피드백을 보낸다', api.fxLog.indexOf('coin:p1') >= 0);
+
+  // 10. 코인은 바퀴마다 되살아난다. 아니면 2랩부터 빈 코스를 달린다
+  s.lap = 1;
+  s.z = coin.z;
+  def.update(1 / 30);
+  eq('다음 바퀴에는 다시 나온다', s.coins, before + 1);
+
+  // 11. 감도 3단계. 실기에서 고르는 손잡이다 (phase8 검증 방법)
+  eq('감도는 3단계다', T.SENS.length, 3);
+  ok('단계가 커질수록 민감하다', T.SENS[0] < T.SENS[1] && T.SENS[1] < T.SENS[2]);
+
+  const lvl = TUNE.SENS_LEVEL;
+  api = makeApi();
+  TUNE.SENS_LEVEL = 0;
+  def.init(api);
+  race(api, () => 1, 2);
+  const low = T.state('p1').x;
+  api = makeApi();
+  TUNE.SENS_LEVEL = 2;
+  def.init(api);
+  race(api, () => 1, 2);
+  const high = T.state('p1').x;
+  ok('감도를 올리면 같은 각도로 더 간다 (' + low.toFixed(2) + ' → ' + high.toFixed(2) + ')',
+     high > low);
+  TUNE.SENS_LEVEL = lvl;
+
+  // 12. 코스는 데이터다. 주소로 바꿔도 게임이 그대로 돈다
+  const cs = TUNE.COURSE;
+  TUNE.COURSE = 1;
+  api = makeApi();
+  def.init(api);
+  race(api, null, 2);
+  ok('다른 코스로도 달린다', T.track().id === 'beach' && T.state('p1').dist > 0);
+  TUNE.COURSE = cs;
+  def.init(makeApi());
+  eq('코스를 되돌리면 원래 코스다', T.track().id, 'meadow');
+
+  // 13. 카트가 화면에 그려진다 (그림 내용이 아니라 예외 없이 도는지만 본다)
+  let threw = null;
+  try {
+    def.init(makeApi());
+    def.update(1 / 30);
+    def.render(fakeCtx());
+    def.demo(fakeCtx(), 1.2, 'lhat');
+  } catch (e) { threw = e; }
+  ok('render/demo가 예외 없이 돈다', threw === null);
+
+  // 14. 이 게임만 쥐는 법이 다르다 (phase8 검증 방법)
+  ok('캘리브레이션 안내가 따로 있다', !!def.calibHint && def.calibHint.length === 2);
+
+  // 15. **커브가 공짜여서는 안 된다.**
+  //     절대 매핑은 목표 위치로 끌어당기는 서보라, 원심력을 "미는 힘"으로 넣으면
+  //     복원력(MOVE_RATE)에 통째로 먹혀 커브에서 아무 일도 일어나지 않는다.
+  //     그러면 가만히 있는 것이 가장 좋은 주행이 되고, 이 게임은 볼거리만 남는다.
+  //     기준점을 옮기는 방식으로 넣은 이유이며, 여기가 그 회귀 감시다.
+  function drivenGrass(tilt) {
+    const a = makeApi();
+    def.init(a);
+    const s2 = T.state('p1');
+    let grass = 0, n = 0;
+    for (let x = 0; x < 90; x += 1 / 30) {
+      def.onTilt({ t: 'tilt', v: tilt(s2), from: 'p1' });
+      def.update(1 / 30);
+      n++;
+      if (s2.offroad) grass++;
+      if (a.ended) break;
+    }
+    return grass / n;
+  }
+
+  // 16. 카트 수가 오프스크린 시트 상한을 넘지 않는다.
+  //     카트 한 대가 시트 한 장이다. 넘기면 먼저 만든 시트가 밀려나고
+  //     그 카트만 화면에서 조용히 사라진다 — 넷이 할 때 터지는 종류의 사고다.
+  const four = makeApi([
+    { id: 'p1', name: '조카', char: 'lhat', score: 0 },
+    { id: 'p2', name: '삼촌', char: 'mario', score: 0 },
+    { id: 'p3', name: '이모', char: 'peach', score: 0 },
+    { id: 'p4', name: '동생', char: 'toad', score: 0 }
+  ]);
+  def.init(four);
+  def.render(fakeCtx());
+  ok('넷이 해도 시트 상한 안 (' + GP.gfx.count() + '/' + GP.config.MAX_OFFSCREEN + ')',
+     GP.gfx.count() <= GP.config.MAX_OFFSCREEN);
+  ok('넷이 해도 NPC가 최소 한 명은 있다', T.npcs().length >= 1);
+  ok('넷이 해도 페이스메이커는 있다', T.npcs()[0].racer.pacer);
+  for (const p of four.players) {
+    ok('카트 그림이 살아 있다 (' + p['char'] + ')', GP.gfx.has('rg-k-' + p['char']));
+  }
+
+  const idle = drivenGrass(() => 0);
+  const steered = drivenGrass((s2) => T.track().curveAt(s2.z) * 0.35);
+  ok('가만히 있으면 급커브에서 풀밭으로 밀린다 (' + Math.round(idle * 100) + '%)', idle > 0);
+  ok('커브 쪽으로 기울이면 안 밀린다 (' + Math.round(steered * 100) + '%)', steered < idle);
+}
+
 /* ══ 미니게임 선택 / 룰렛 ═══════════════════════════════ */
 
 function testRoulette() {
@@ -473,7 +781,11 @@ function testRoulette() {
 
   const vis = GP.games.visible();
   ok('진단 화면은 목록에 없다', vis.indexOf('debug') < 0);
-  ok('만든 게임이 다 들어 있다', vis.length >= 3);
+  // 미니게임 5종이 전부 룰렛에 올라와야 세션이 완성이다 (phase8 완료 기준)
+  eq('미니게임이 5종이다', vis.length, 5);
+  eq('다섯 종이 다 있다', vis.slice().sort().join(','),
+     'blockbreak,hammer,jumprope,racing,ropeclimb');
+
 
   // 직전 게임은 후보에서 빠진다
   ok('직전 게임은 안 나온다', GP.games.pool('hammer').indexOf('hammer') < 0);
@@ -498,6 +810,10 @@ function testRoulette() {
   eq('100판에서 같은 게임 연속 0회', sameTwice, 0);
   eq('100판에서 힘든 게임 연속 0회', backToBackHigh, 0);
   ok('한 게임만 나오지 않는다', Object.keys(seen).length >= 2);
+
+  // 등록만 되고 안 뽑히면 없는 것과 같다. 다섯 종이 다 나와야 세션이 완성이다 (phase8).
+  eq('100판에 다섯 종이 다 나온다', Object.keys(seen).sort().join(','),
+     'blockbreak,hammer,jumprope,racing,ropeclimb');
 
   // 후보가 하나도 안 남는 상황에서도 뭔가는 뽑는다 — 멈추는 것이 제일 나쁘다
   ok('후보가 좁아도 뽑는다', !!GP.games.roll('hammer'));
@@ -1023,7 +1339,7 @@ function testAssets() {
       def.render(fakeCtx());
     }
   } catch (e) { threw = e; }
-  ok('그림이 없어도 네 게임이 다 그려진다', threw === null);
+  ok('그림이 없어도 다섯 게임이 다 그려진다', threw === null);
 
   A._reset();
   A.boot(GP.assetManifest);
@@ -1036,6 +1352,8 @@ testNpc();
 testRopeclimb();
 testHammer();
 testBlockbreak();
+testPseudo3d();
+testRacing();
 testRoulette();
 testBoard();
 testMultiplayer();

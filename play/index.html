@@ -132,7 +132,8 @@
 <!-- 4. 캘리브레이션 -->
 <div class="screen" id="s-calib">
   <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;width:100%">
-    <div class="title" style="font-size:38px">폰을 가슴에 대고<br>똑바로 서세요</div>
+    <!-- 게임마다 쥐는 법이 다르다. 레이싱은 핸들처럼 잡는다 — js/play.js CALIB_TEXT -->
+    <div class="title" id="calib-title" style="font-size:38px">폰을 가슴에 대고<br>똑바로 서세요</div>
     <div style="width:80%"><div id="calib-bar"><div id="calib-fill"></div></div></div>
     <div class="sub" id="calib-msg" style="margin-top:16px"></div>
   </div>
