@@ -560,11 +560,13 @@
     ctx.moveTo(0, mid - T.SPIKE_ON * 2); ctx.lineTo(w, mid - T.SPIKE_ON * 2);
     ctx.stroke();
 
-    // 스쿼트 속도 임계선. 분홍 선이 아래 선을 찍고 위 선을 넘으면 1회.
+    // 속도 임계선. 분홍 선이 아래 선을 찍고 가운데 위 선을 넘으면 스쿼트,
+    // 아래 선을 안 찍고 맨 위 선을 넘으면 쳐올리기.
     ctx.strokeStyle = 'rgba(255,122,217,.35)';
     ctx.beginPath();
     ctx.moveTo(0, mid + T.SQUAT_VEL_DOWN * 60); ctx.lineTo(w, mid + T.SQUAT_VEL_DOWN * 60);
     ctx.moveTo(0, mid - T.SQUAT_VEL_UP * 60); ctx.lineTo(w, mid - T.SQUAT_VEL_UP * 60);
+    ctx.moveTo(0, mid - T.PUNCH_VEL_UP * 60); ctx.lineTo(w, mid - T.PUNCH_VEL_UP * 60);
     ctx.stroke();
 
     global.requestAnimationFrame(drawWave);

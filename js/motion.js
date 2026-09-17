@@ -67,7 +67,7 @@
     this._grav = null;        // 현재 중력 방향 추정 (폰 좌표계, 저역 통과). 기준 자세에서 출발
     this._vel = 0;            // 세로 속도 추정 (m/s). 세로 가속도의 누설 적분
     // phase: idle → down(내려가는 중) → rise(일어나기 시작, 체공 확인 대기) → idle
-    this._squat = { phase: 'idle', startT: 0, vmin: 0, fireAt: 0, p: 0 };
+    this._squat = { phase: 'idle', startT: 0, vmin: 0, fireAt: 0, p: 0, punchArmed: true };
 
     this.lane = 1;            // 3레인 기준 현재 레인 (0,1,2)
     this.tilt = 0;            // 연속값 -1 ~ 1
@@ -98,14 +98,12 @@
   /**
    * 받을 동작을 고른다. 예: detector.setEnabled({ jump: true })
    *
-   * 실제 점프는 세로 스파이크가 두 번 난다. 뛰어오를 때(발이 바닥) 한 번, 착지할 때 한 번.
-   * 앞의 것은 직전 자유낙하가 없으므로 명세상 쳐올리기로 분류된다. 이건 오류가 아니라
-   * 두 동작을 체공 구간으로 가르는 방식의 필연적 결과다.
-   * 점프 앞의 웅크림-도약은 세로 왕복이기도 해서 squat이 켜져 있으면 그쪽으로도 샌다.
+   * 세 동작(점프·쳐올리기·스쿼트)은 한 세로축 신호를 나눠 갖는다. 판정기는 셋을 전부 켠 채로도
+   * 서로 새지 않게 만들어져 있다 (_detectCycle 참고) — 판정 확인 화면이 그 상태로 돈다.
+   * 그래도 미니게임은 PROJECT.md 4장대로 필요한 동작 하나만 켠다. 배제 규칙은 켜짐과 무관하게
+   * 작동하므로, 하나만 켜도 나머지 동작이 그쪽으로 새지 않는다.
    *
-   * PROJECT.md 4장대로 미니게임 하나당 동작 하나만 쓰므로, 게임이 필요한 것만 켜면 문제가 없다.
-   * 둘을 동시에 켜야 하는 게임이 생기면 그때 쳐올리기 발화를 지연시켜 취소하는 방식을 검토한다.
-   * (지연은 블록깨기 반응성을 해치므로 지금은 하지 않는다)
+   * 알려진 구멍: 웅크림 없이 뻣뻣하게 뛰면 도약이 "위로 먼저"라 쳐올리기로 잡힌다 (착지는 점프).
    */
   Detector.prototype.setEnabled = function (map) {
     for (var k in map) {
@@ -132,6 +130,7 @@
     this._grav = null;
     this._vel = 0;
     this._squat.phase = 'idle';
+    this._squat.punchArmed = true;
     this.lane = 1;
     this.tilt = 0;
   };
@@ -176,8 +175,10 @@
     this._vert = T.ACCEL_SMOOTH * this._vert + (1 - T.ACCEL_SMOOTH) * vertRaw;
 
     // 세로 속도. 가속도를 그냥 적분하면 편향이 끝없이 쌓이므로 시간상수만큼 새어 나가게 한다.
+    // 가속도가 거의 없으면(정지) 훨씬 빨리 0으로 되돌린다 — 안 움직이면 속도도 없다.
     if (dt > 0) {
-      this._vel = this._vel * Math.exp(-dt / T.SQUAT_VEL_TAU_MS) + this._vert * (dt / 1000);
+      var tau = Math.abs(this._vert) < T.VEL_REST_ACCEL ? T.VEL_REST_TAU_MS : T.SQUAT_VEL_TAU_MS;
+      this._vel = this._vel * Math.exp(-dt / tau) + this._vert * (dt / 1000);
     }
 
     var pitchRel = angleDelta(s.pitch, b.pitch0);
@@ -193,7 +194,7 @@
 
     this._trackFreefall(s.t, mag);
     this._detectSpike(s.t);
-    this._detectSquat(s.t);
+    this._detectCycle(s.t);
     this._detectTilt();
 
     this.debug.vert = this._vert;
@@ -274,16 +275,11 @@
 
     var p = clamp((this._peak - T.SPIKE_MIN) / (T.SPIKE_MAX - T.SPIKE_MIN), 0, 1);
 
-    // 둘 다 세로 가속도 스파이크다. 결정적 차이는 직전 체공 구간뿐이다.
+    // 스파이크 직전에 체공이 있었으면 착지다. 없으면 도약이나 힘찬 동작이라 여기서는 아무것도 아니다.
+    // (쳐올리기는 _detectCycle이 속도 방향으로 본다)
     if (this._hadFreefall(this._peakT)) {
       if (!T.JUMP_ON_FREEFALL_START) this._fire('jump', t, p);
-      return;
     }
-
-    // 힘차게 일어서는 것도 스파이크다. 아래로 먼저 갔으면 스쿼트지 쳐올리기가 아니다.
-    if (this._squat.phase !== 'idle') return;
-    if (t - this._lastFire.squat < T.SQUAT_PUNCH_GUARD_MS) return;
-    this._fire('punch', t, p);
   };
 
   Detector.prototype._fire = function (action, t, p) {
@@ -298,35 +294,55 @@
     this._emit('action', { a: action, p: p, t: t });
   };
 
-  /* 스쿼트 */
+  /* 스쿼트 / 쳐올리기 — 세로 속도 사이클 */
 
   /**
-   * 세로 속도가 아래로 갔다가 위로 돌아오는 1사이클.
+   * 세로 속도의 첫 방향이 가른다. 아래로 먼저 = 스쿼트, 위로 먼저 = 쳐올리기.
    *
    * 각도(pitch)는 보지 않는다. 폰을 같은 높이에서 젖히기만 해도 각도는 변하지만
    * 세로 속도는 안 변한다 — 실기에서 그 오인식이 잡혀 여기로 바꿨다.
+   * 쳐올리기도 가속도 크기(스파이크)가 아니라 방향이다 — 보통 속도로 올리면 스파이크가
+   * 임계에 못 미쳐 안 잡히고, 내려와 멈추는 왕복만 스쿼트로 새던 것을 실기에서 봤다.
    *
-   * 발화 시점은 "일어나기 시작" + SQUAT_CONFIRM_MS. 다 일어날 때까지 기다리면 로프가 늦게 오르고,
-   * 바로 내면 점프의 도약을 스쿼트로 센다. 그 사이 체공이 시작되면 점프였던 것이다.
+   * 스쿼트 발화는 "일어나기 시작" + SQUAT_CONFIRM_MS. 다 일어날 때까지 기다리면 로프가 늦게
+   * 오르고, 바로 내면 점프의 도약을 스쿼트로 센다. 그 사이 체공이 시작되면 점프였던 것이다.
+   * 쳐올리기는 위로 넘는 즉시 낸다 — 블록깨기는 반응이 생명이다.
    */
-  Detector.prototype._detectSquat = function (t) {
+  Detector.prototype._detectCycle = function (t) {
     var sq = this._squat;
     var v = this._vel;
 
     if (sq.phase === 'idle') {
-      // 쳐올린 폰이 가슴으로 돌아와 멈추는 것도 세로 왕복이다. 위로 먼저 갔으면 쳐올리기다.
-      if (t - this._lastFire.punch < T.SQUAT_PUNCH_GUARD_MS) return;
+      // 다음 쳐올리기는 속도가 한 번 가라앉은 뒤에만. 길게 밀어 올리는 동안 쿨다운마다 다시 잡히지 않게.
+      if (v < T.PUNCH_VEL_REARM) sq.punchArmed = true;
+
       // 속도만 보면 폰을 젖힐 때 생기는 느린 표류도 "내려감"이 된다. 가속도로 동작인지 가른다.
+      // 체공 중에도 여기로 들어온다 (속도가 곤두박질친다) — 그래야 착지의 튀어오름이
+      // 쳐올리기가 아니라 "내려간 뒤"로 분류되고, 직후 체공 확인에서 스쿼트도 취소된다.
       if (v <= -T.SQUAT_VEL_DOWN && this._vert <= -T.SQUAT_ACCEL_DOWN) {
+        // 쳐올린 폰이 가슴으로 돌아와 멈추는 것도 세로 왕복이다. 위로 먼저 갔으면 쳐올리기다.
+        if (t - this._lastFire.punch < T.SQUAT_PUNCH_GUARD_MS) return;
         sq.phase = 'down';
         sq.startT = t;
         sq.vmin = v;
+        return;
+      }
+
+      if (sq.punchArmed && v >= T.PUNCH_VEL_UP && this._vert >= T.PUNCH_ACCEL_UP) {
+        // 힘차게 일어선 직후의 반동은 쳐올리기가 아니다.
+        if (t - this._lastFire.squat < T.SQUAT_PUNCH_GUARD_MS) return;
+        sq.punchArmed = false;
+        var pp = clamp((this._vert - T.PUNCH_ACCEL_UP) / (T.PUNCH_ACCEL_MAX - T.PUNCH_ACCEL_UP), 0, 1);
+        this._fire('punch', t, pp);
       }
       return;
     }
 
     if (sq.phase === 'rise') {
-      if (this._ff.since >= 0) { sq.phase = 'idle'; return; }   // 발이 떴다. 점프다
+      // 일어나기 시작한 직후 체공이 확인되면 점프의 도약이었다. 나머지 올라감도 쳐올리기가 아니다.
+      // 체공은 FREEFALL_MIN_MS 이상 이어진 것만 인정한다 — 힘차게 일어서다 멈추는 감속도
+      // 한두 표본은 체공처럼 보인다.
+      if (this._hadFreefall(t)) { sq.phase = 'idle'; sq.punchArmed = false; return; }
       if (t < sq.fireAt) return;
       sq.phase = 'idle';
       this._fire('squat', t, sq.p);
@@ -345,7 +361,8 @@
     if (v < T.SQUAT_VEL_UP) return;
 
     // 내려간 지 얼마 안 돼 올라왔으면 걸음이나 흔들림이다. 이번 왕복은 버린다.
-    if (t - sq.startT < T.SQUAT_MIN_MS) { sq.phase = 'idle'; return; }
+    // 올라가는 구간이 남아 있으니 무장을 풀어 그게 쳐올리기로 보이지 않게 한다 (점프의 도약이 여기 걸린다).
+    if (t - sq.startT < T.SQUAT_MIN_MS) { sq.phase = 'idle'; sq.punchArmed = false; return; }
 
     sq.phase = 'rise';
     sq.fireAt = t + T.SQUAT_CONFIRM_MS;

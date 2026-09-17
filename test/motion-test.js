@@ -85,12 +85,14 @@ check('점프 (jump만 켬) → jump 1회', kinds(gJumpOnly), ['jump']);
 const dBoth = make();
 const gBoth = collect(dBoth);
 play(dBoth, JUMP);
-check('점프 (둘 다 켬) → 도약=punch, 착지=jump (명세상 정상)', kinds(gBoth), ['punch', 'jump']);
+// 점프는 웅크림(아래)으로 시작하니 도약이 쳐올리기가 아니고, 발이 뜨니 스쿼트도 아니다.
+check('점프 (전부 켬) → jump만', kinds(gBoth), ['jump']);
 
-/* 2. 쳐올리기 — 체공 없는 스파이크 */
+/* 2. 쳐올리기 — 위로 먼저 움직인다. 쳐올리고 꼭대기에서 멈추는 데까지.
+ *    (폰이 날아가지 않으려면 올린 만큼 감속이 있어야 한다) */
 const PUNCH = [
   { ms: 300, vert: 0 },
-  { ms: 80, vert: 20 },
+  { ms: 80, vert: 20 }, { ms: 80, vert: -20 },
   { ms: 400, vert: 0 }
 ];
 const dPunch = make();
@@ -98,12 +100,25 @@ const gPunch = collect(dPunch);
 play(dPunch, PUNCH);
 check('쳐올리기 → punch 1회, jump 없음', kinds(gPunch), ['punch']);
 
+/* 2b. 살살 쳐올리기 — 가속도가 옛 스파이크 임계(12)에 한참 못 미쳐도 위로 먼저 갔으면 쳐올리기다.
+ *     실기에서 이게 안 잡히고, 내려와 멈추는 왕복만 스쿼트로 잡혔다. */
+const dSoft = make();
+const gSoft = collect(dSoft);
+play(dSoft, [
+  { ms: 300, vert: 0 },
+  { ms: 150, vert: 6 }, { ms: 150, vert: -6 },     // 올리고 멈춤
+  { ms: 150, vert: 0 },
+  { ms: 100, vert: -5 }, { ms: 100, vert: 5 },     // 내리고 멈춤
+  { ms: 500, vert: 0 }
+]);
+check('살살 쳐올리기 (전부 켬) → punch만', kinds(gSoft), ['punch']);
+
 /* 3. 쳐올리기 20회 연속 — 오인식이 섞이는지 */
 const dRep = make();
 const gRep = collect(dRep);
 const reps = [];
-for (let i = 0; i < 20; i++) reps.push({ ms: 300, vert: 0 }, { ms: 80, vert: 18 + (i % 5) });
-reps.push({ ms: 300, vert: 0 });   // 마지막 스파이크도 임계 아래로 내려와야 판정된다
+for (let i = 0; i < 20; i++) reps.push({ ms: 300, vert: 0 }, { ms: 80, vert: 18 + (i % 5) }, { ms: 80, vert: -(18 + (i % 5)) });
+reps.push({ ms: 300, vert: 0 });
 play(dRep, reps);
 const wrong = kinds(gRep).filter(k => k !== 'punch').length;
 check('쳐올리기 20회 → punch 20회, 오인식 0', [gRep.length, wrong], [20, 0]);
@@ -198,6 +213,24 @@ const pc10 = [];
 for (let i = 0; i < 10; i++) pc10.push(...PUNCH_CYCLE.slice(1));
 play(dPc10, pc10);
 check('쳐올리기 왕복 10회 → punch 10, 그 외 0', [gPc10.length, kinds(gPc10).filter(k => k !== 'punch').length], [10, 0]);
+
+/* 6g. 쉼 없이 펌핑 8회 — 블록깨기에서 아이가 연타하는 모양. 꼭대기 감속이 체공처럼 보여도 (합가속도 < 3)
+ *     다음 쳐올리기를 막으면 안 된다. */
+const dPump = make();
+const gPump = collect(dPump);
+const pump = [{ ms: 300, vert: 0 }];
+for (let i = 0; i < 8; i++) pump.push({ ms: 100, vert: 12 }, { ms: 100, vert: -12 }, { ms: 100, vert: -8 }, { ms: 100, vert: 8 });
+pump.push({ ms: 500, vert: 0 });
+play(dPump, pump);
+check('쉼 없는 펌핑 8회 → punch 8, 그 외 0', [gPump.length, kinds(gPump).filter(k => k !== 'punch').length], [8, 0]);
+
+/* 6h. 점프 20회 연속, 전부 켬 — 잔류 속도가 쌓여도 도약이 쳐올리기로, 웅크림이 스쿼트로 새면 안 된다 */
+const dJ20 = make();
+const gJ20 = collect(dJ20);
+const j20 = [{ ms: 300, vert: 0 }];
+for (let i = 0; i < 20; i++) j20.push(...JUMP.slice(1));
+play(dJ20, j20);
+check('점프 20회 (전부 켬) → jump 20, 그 외 0', [gJ20.length, kinds(gJ20).filter(k => k !== 'jump').length], [20, 0]);
 
 // 로프 클라이밍처럼 squat만 켠 게임에서 폰을 쳐올려도 돌아오는 왕복이 스쿼트가 되면 안 된다.
 const dPcSq = make({ jump: false, punch: false });
