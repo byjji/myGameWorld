@@ -53,6 +53,8 @@
     this._spiking = false;    // 스파이크 구간 진입 여부
     this._peak = 0;           // 현재 스파이크의 최대값
     this._peakT = 0;
+    // 마지막으로 "잡힌" 시각. 켜져 있지 않아 내보내지 않은 것도 기록한다 —
+    // 스쿼트/쳐올리기 상호 배제는 게임이 하나만 켰을 때도 작동해야 한다.
     this._lastFire = { jump: -1e9, punch: -1e9, squat: -1e9 };
 
     // 게임이 쓰는 동작만 켠다. setEnabled() 참고.
@@ -64,7 +66,8 @@
     this._lastT = -1;         // 직전 표본 시각. 적분 간격 계산용
     this._grav = null;        // 현재 중력 방향 추정 (폰 좌표계, 저역 통과). 기준 자세에서 출발
     this._vel = 0;            // 세로 속도 추정 (m/s). 세로 가속도의 누설 적분
-    this._squat = { phase: 'idle', startT: 0, vmin: 0 };
+    // phase: idle → down(내려가는 중) → rise(일어나기 시작, 체공 확인 대기) → idle
+    this._squat = { phase: 'idle', startT: 0, vmin: 0, fireAt: 0, p: 0 };
 
     this.lane = 1;            // 3레인 기준 현재 레인 (0,1,2)
     this.tilt = 0;            // 연속값 -1 ~ 1
@@ -274,9 +277,13 @@
     // 둘 다 세로 가속도 스파이크다. 결정적 차이는 직전 체공 구간뿐이다.
     if (this._hadFreefall(this._peakT)) {
       if (!T.JUMP_ON_FREEFALL_START) this._fire('jump', t, p);
-    } else {
-      this._fire('punch', t, p);
+      return;
     }
+
+    // 힘차게 일어서는 것도 스파이크다. 아래로 먼저 갔으면 스쿼트지 쳐올리기가 아니다.
+    if (this._squat.phase !== 'idle') return;
+    if (t - this._lastFire.squat < T.SQUAT_PUNCH_GUARD_MS) return;
+    this._fire('punch', t, p);
   };
 
   Detector.prototype._fire = function (action, t, p) {
@@ -284,9 +291,9 @@
            : action === 'punch' ? T.PUNCH_COOLDOWN_MS
            : T.SQUAT_COOLDOWN_MS;
 
-    if (!this._enabled[action]) return;
     if (t - this._lastFire[action] < cd) return;
     this._lastFire[action] = t;
+    if (!this._enabled[action]) return;
     this._emit(action, { a: action, p: p, t: t });
     this._emit('action', { a: action, p: p, t: t });
   };
@@ -299,13 +306,16 @@
    * 각도(pitch)는 보지 않는다. 폰을 같은 높이에서 젖히기만 해도 각도는 변하지만
    * 세로 속도는 안 변한다 — 실기에서 그 오인식이 잡혀 여기로 바꿨다.
    *
-   * 발화 시점은 "일어나기 시작"이다. 다 일어날 때까지 기다리면 로프가 늦게 오른다.
+   * 발화 시점은 "일어나기 시작" + SQUAT_CONFIRM_MS. 다 일어날 때까지 기다리면 로프가 늦게 오르고,
+   * 바로 내면 점프의 도약을 스쿼트로 센다. 그 사이 체공이 시작되면 점프였던 것이다.
    */
   Detector.prototype._detectSquat = function (t) {
     var sq = this._squat;
     var v = this._vel;
 
     if (sq.phase === 'idle') {
+      // 쳐올린 폰이 가슴으로 돌아와 멈추는 것도 세로 왕복이다. 위로 먼저 갔으면 쳐올리기다.
+      if (t - this._lastFire.punch < T.SQUAT_PUNCH_GUARD_MS) return;
       // 속도만 보면 폰을 젖힐 때 생기는 느린 표류도 "내려감"이 된다. 가속도로 동작인지 가른다.
       if (v <= -T.SQUAT_VEL_DOWN && this._vert <= -T.SQUAT_ACCEL_DOWN) {
         sq.phase = 'down';
@@ -315,6 +325,15 @@
       return;
     }
 
+    if (sq.phase === 'rise') {
+      if (this._ff.since >= 0) { sq.phase = 'idle'; return; }   // 발이 떴다. 점프다
+      if (t < sq.fireAt) return;
+      sq.phase = 'idle';
+      this._fire('squat', t, sq.p);
+      return;
+    }
+
+    // phase === 'down'
     if (v < sq.vmin) sq.vmin = v;
 
     // 너무 오래 안 올라오면 그냥 앉아 있는 것. 처음부터 다시 본다.
@@ -325,13 +344,12 @@
 
     if (v < T.SQUAT_VEL_UP) return;
 
-    sq.phase = 'idle';
-
     // 내려간 지 얼마 안 돼 올라왔으면 걸음이나 흔들림이다. 이번 왕복은 버린다.
-    if (t - sq.startT < T.SQUAT_MIN_MS) return;
+    if (t - sq.startT < T.SQUAT_MIN_MS) { sq.phase = 'idle'; return; }
 
-    var p = clamp((-sq.vmin - T.SQUAT_VEL_DOWN) / (T.SQUAT_VEL_MAX - T.SQUAT_VEL_DOWN), 0, 1);
-    this._fire('squat', t, p);
+    sq.phase = 'rise';
+    sq.fireAt = t + T.SQUAT_CONFIRM_MS;
+    sq.p = clamp((-sq.vmin - T.SQUAT_VEL_DOWN) / (T.SQUAT_VEL_MAX - T.SQUAT_VEL_DOWN), 0, 1);
   };
 
   /* 좌우 기울기 */

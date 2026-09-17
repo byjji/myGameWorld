@@ -166,6 +166,45 @@ play(dTilted, [{ ms: 500, pitch0: 0, pitch: 25 }, { ms: 2000, pitch: 25 }]
   .concat(SQUAT.slice(1).map(s => Object.assign({ pitch: 25 }, s))));
 check('젖힌 채 스쿼트 → squat 1회', kinds(gTilted), ['squat']);
 
+/* 6e. 힘차게 일어서는 스쿼트 — 일어설 때 가속도가 쳐올리기 임계를 넘어도 쳐올리기가 아니다.
+ *     아래로 먼저 갔으니 스쿼트다. (실기에서 둘이 같이 잡혔다) */
+const dVig = make();
+const gVig = collect(dVig);
+play(dVig, [
+  { ms: 300, vert: 0 },
+  { ms: 250, vert: -3 }, { ms: 250, vert: 3 }, { ms: 200, vert: 0 },
+  { ms: 100, vert: 14 }, { ms: 100, vert: -14 },
+  { ms: 500, vert: 0 }
+]);
+check('힘찬 스쿼트 (전부 켬) → squat만', kinds(gVig), ['squat']);
+
+/* 6f. 쳐올리기 — 위로 쳐올렸다가 가슴으로 내려온다. 위로 먼저 갔으니 쳐올리기다.
+ *     내려와 멈추는 왕복이 스쿼트로 새면 안 된다. */
+const PUNCH_CYCLE = [
+  { ms: 300, vert: 0 },
+  { ms: 80, vert: 20 }, { ms: 80, vert: -20 },   // 쳐올리고 꼭대기에서 멈춤
+  { ms: 150, vert: 0 },
+  { ms: 100, vert: -6 }, { ms: 100, vert: 6 },   // 가슴으로 내려와 멈춤
+  { ms: 500, vert: 0 }
+];
+const dPc = make();
+const gPc = collect(dPc);
+play(dPc, PUNCH_CYCLE);
+check('쳐올리기 왕복 (전부 켬) → punch만', kinds(gPc), ['punch']);
+
+const dPc10 = make();
+const gPc10 = collect(dPc10);
+const pc10 = [];
+for (let i = 0; i < 10; i++) pc10.push(...PUNCH_CYCLE.slice(1));
+play(dPc10, pc10);
+check('쳐올리기 왕복 10회 → punch 10, 그 외 0', [gPc10.length, kinds(gPc10).filter(k => k !== 'punch').length], [10, 0]);
+
+// 로프 클라이밍처럼 squat만 켠 게임에서 폰을 쳐올려도 돌아오는 왕복이 스쿼트가 되면 안 된다.
+const dPcSq = make({ jump: false, punch: false });
+const gPcSq = collect(dPcSq);
+play(dPcSq, PUNCH_CYCLE);
+check('쳐올리기 왕복 (squat만 켬) → 발화 없음', gPcSq, []);
+
 /* 6d. 제자리 걸음 — 2Hz로 위아래 흔들리지만 스쿼트가 아니다 */
 const dWalk = make();
 const gWalk = collect(dWalk);

@@ -100,6 +100,7 @@
 | 판정이 늦다 | `JUMP_LAG_MS` (기본 0) | 올린다 (RTT 절반부터) |
 | 스쿼트를 얕게 한다 | `SQUAT_VEL_DOWN`·`SQUAT_VEL_UP` (기본 0.25) | 낮춘다 (둘 다) |
 | 스쿼트를 느리게 한다 | `SQUAT_ACCEL_DOWN` (기본 1.0) | 낮춘다 |
+| 스쿼트·쳐올리기가 서로 섞인다 | `SQUAT_PUNCH_GUARD_MS` (기본 800) | 올린다 |
 | 로프가 너무 힘들다 | `ropeclimb.HEIGHT` (기본 25) | 낮춘다 |
 | 줄넘기가 빠르다 | `jumprope.PERIOD_START` (기본 1.7) | 올린다 |
 | 해머가 빠르다 | `hammer.INTERVAL_START` (기본 1.7) | 올린다 |
