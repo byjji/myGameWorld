@@ -86,7 +86,7 @@
 <도메인>/?tune=ropeclimb.HEIGHT:18        TV (게임별 값)
 ```
 
-여러 개는 쉼표로. `?tune=SPIKE_ON:10,SQUAT_DOWN_DEG:16`
+여러 개는 쉼표로. `?tune=SPIKE_ON:10,SQUAT_VEL_DOWN:0.2`
 
 적용되면 **폰 위쪽과 TV 오른쪽 아래에 "튜닝 N개 적용"이 뜬다.** 안 뜨면 안 먹은 것이다.
 없는 이름을 쓰면 빨갛게 "무시 N개"가 뜬다 — 오타를 조용히 넘기지 않는다.
@@ -98,7 +98,8 @@
 | 점프가 안 잡힌다 | `SPIKE_ON` (기본 12) | 낮춘다 |
 | 안 뛰었는데 잡힌다 | `SPIKE_ON` | 올린다 |
 | 판정이 늦다 | `JUMP_LAG_MS` (기본 0) | 올린다 (RTT 절반부터) |
-| 스쿼트를 얕게 한다 | `SQUAT_DOWN_DEG` (기본 22) | 낮춘다 |
+| 스쿼트를 얕게 한다 | `SQUAT_VEL_DOWN`·`SQUAT_VEL_UP` (기본 0.25) | 낮춘다 (둘 다) |
+| 스쿼트를 느리게 한다 | `SQUAT_ACCEL_DOWN` (기본 1.0) | 낮춘다 |
 | 로프가 너무 힘들다 | `ropeclimb.HEIGHT` (기본 25) | 낮춘다 |
 | 줄넘기가 빠르다 | `jumprope.PERIOD_START` (기본 1.7) | 올린다 |
 | 해머가 빠르다 | `hammer.INTERVAL_START` (기본 1.7) | 올린다 |

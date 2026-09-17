@@ -61,13 +61,16 @@
     this._ff = { since: -1, until: -1 };   // 자유낙하 구간
     this._ffFired = false;                 // JUMP_ON_FREEFALL_START 모드용
 
-    this._squat = { phase: 'idle', sign: 0, startT: 0, depth: 0 };
+    this._lastT = -1;         // 직전 표본 시각. 적분 간격 계산용
+    this._grav = null;        // 현재 중력 방향 추정 (폰 좌표계, 저역 통과). 기준 자세에서 출발
+    this._vel = 0;            // 세로 속도 추정 (m/s). 세로 가속도의 누설 적분
+    this._squat = { phase: 'idle', startT: 0, vmin: 0 };
 
     this.lane = 1;            // 3레인 기준 현재 레인 (0,1,2)
     this.tilt = 0;            // 연속값 -1 ~ 1
 
     // 디버그 오버레이용. 판정을 안 거치고 화면에 그대로 뿌린다.
-    this.debug = { vert: 0, mag: 0, pitchRel: 0, rollRel: 0, freefall: false, squat: 'idle' };
+    this.debug = { vert: 0, vel: 0, mag: 0, pitchRel: 0, rollRel: 0, freefall: false, squat: 'idle' };
   }
 
   Detector.prototype.on = function (name, fn) {
@@ -95,6 +98,7 @@
    * 실제 점프는 세로 스파이크가 두 번 난다. 뛰어오를 때(발이 바닥) 한 번, 착지할 때 한 번.
    * 앞의 것은 직전 자유낙하가 없으므로 명세상 쳐올리기로 분류된다. 이건 오류가 아니라
    * 두 동작을 체공 구간으로 가르는 방식의 필연적 결과다.
+   * 점프 앞의 웅크림-도약은 세로 왕복이기도 해서 squat이 켜져 있으면 그쪽으로도 샌다.
    *
    * PROJECT.md 4장대로 미니게임 하나당 동작 하나만 쓰므로, 게임이 필요한 것만 켜면 문제가 없다.
    * 둘을 동시에 켜야 하는 게임이 생기면 그때 쳐올리기 발화를 지연시켜 취소하는 방식을 검토한다.
@@ -121,8 +125,10 @@
     this._spiking = false;
     this._ff.since = this._ff.until = -1;
     this._ffFired = false;
+    this._lastT = -1;
+    this._grav = null;
+    this._vel = 0;
     this._squat.phase = 'idle';
-    this._squat.sign = 0;
     this.lane = 1;
     this.tilt = 0;
   };
@@ -147,9 +153,29 @@
 
     var mag = Math.sqrt(s.ax * s.ax + s.ay * s.ay + s.az * s.az);
 
-    // 세로축 = 기준 자세의 중력 방향. 폰을 쥔 각도가 달라도 같은 축을 본다.
-    var vertRaw = (s.ax * b.gx + s.ay * b.gy + s.az * b.gz) - T.G;
+    // 표본 간격. 첫 표본은 모르니 0. 탭 전환 등으로 구멍이 나면 100ms로 잘라 적분이 튀지 않게 한다.
+    var dt = this._lastT < 0 ? 0 : Math.min(s.t - this._lastT, 100);
+    this._lastT = s.t;
+
+    // 세로축 = 지금 폰이 보는 중력 방향. 기준 자세에서 출발해 천천히 따라간다.
+    // 기준 자세 중력에 고정하면 폰을 젖힌 채로는 세로 가속도에 cos 손실이 상수로 끼고,
+    // 그게 적분되어 속도가 한쪽으로 흘러 스쿼트를 놓친다.
+    var g = this._grav;
+    if (!g) g = this._grav = { x: b.gx * T.G, y: b.gy * T.G, z: b.gz * T.G };
+    if (dt > 0) {
+      var kg = 1 - Math.exp(-dt / T.GRAVITY_TAU_MS);
+      g.x += (s.ax - g.x) * kg;
+      g.y += (s.ay - g.y) * kg;
+      g.z += (s.az - g.z) * kg;
+    }
+    var gm = Math.sqrt(g.x * g.x + g.y * g.y + g.z * g.z) || 1;
+    var vertRaw = (s.ax * g.x + s.ay * g.y + s.az * g.z) / gm - T.G;
     this._vert = T.ACCEL_SMOOTH * this._vert + (1 - T.ACCEL_SMOOTH) * vertRaw;
+
+    // 세로 속도. 가속도를 그냥 적분하면 편향이 끝없이 쌓이므로 시간상수만큼 새어 나가게 한다.
+    if (dt > 0) {
+      this._vel = this._vel * Math.exp(-dt / T.SQUAT_VEL_TAU_MS) + this._vert * (dt / 1000);
+    }
 
     var pitchRel = angleDelta(s.pitch, b.pitch0);
     var rollRel = angleDelta(s.roll, b.roll0);
@@ -168,6 +194,7 @@
     this._detectTilt();
 
     this.debug.vert = this._vert;
+    this.debug.vel = this._vel;
     this.debug.mag = mag;
     this.debug.pitchRel = this._pitch;
     this.debug.rollRel = this._roll;
@@ -266,44 +293,45 @@
 
   /* 스쿼트 */
 
+  /**
+   * 세로 속도가 아래로 갔다가 위로 돌아오는 1사이클.
+   *
+   * 각도(pitch)는 보지 않는다. 폰을 같은 높이에서 젖히기만 해도 각도는 변하지만
+   * 세로 속도는 안 변한다 — 실기에서 그 오인식이 잡혀 여기로 바꿨다.
+   *
+   * 발화 시점은 "일어나기 시작"이다. 다 일어날 때까지 기다리면 로프가 늦게 오른다.
+   */
   Detector.prototype._detectSquat = function (t) {
     var sq = this._squat;
-    var rel = this._pitch;
-    var away = Math.abs(rel);
+    var v = this._vel;
 
     if (sq.phase === 'idle') {
-      if (away >= T.SQUAT_DOWN_DEG) {
-        // 어느 방향으로 기우는지는 폰을 쥔 자세에 따라 다르다.
-        // 처음 벗어난 방향을 기억하고 그 방향의 왕복만 인정한다.
+      // 속도만 보면 폰을 젖힐 때 생기는 느린 표류도 "내려감"이 된다. 가속도로 동작인지 가른다.
+      if (v <= -T.SQUAT_VEL_DOWN && this._vert <= -T.SQUAT_ACCEL_DOWN) {
         sq.phase = 'down';
-        sq.sign = rel < 0 ? -1 : 1;
         sq.startT = t;
-        sq.depth = away;
+        sq.vmin = v;
       }
       return;
     }
 
-    // 왕복이 너무 느리면 스쿼트가 아니다. 그냥 앉아 있는 것.
+    if (v < sq.vmin) sq.vmin = v;
+
+    // 너무 오래 안 올라오면 그냥 앉아 있는 것. 처음부터 다시 본다.
     if (t - sq.startT > T.SQUAT_MAX_MS) {
       sq.phase = 'idle';
-      sq.sign = 0;
       return;
     }
 
-    if (sq.depth < away) sq.depth = away;
+    if (v < T.SQUAT_VEL_UP) return;
 
-    // 같은 방향을 유지하다가 기준 자세 근처로 돌아오면 1사이클 완료.
-    var sameDir = (rel * sq.sign) > 0;
-    if (!sameDir || away <= T.SQUAT_UP_DEG) {
-      // 보조 신호. 아직 내려가는 중이면 조금 더 본다.
-      // SQUAT_ACCEL_HINT가 0이면 각도만 본다.
-      if (T.SQUAT_ACCEL_HINT > 0 && this._vert < -T.SQUAT_ACCEL_HINT) return;
+    sq.phase = 'idle';
 
-      var p = clamp((sq.depth - T.SQUAT_DOWN_DEG) / T.SQUAT_DOWN_DEG, 0, 1);
-      sq.phase = 'idle';
-      sq.sign = 0;
-      this._fire('squat', t, p);
-    }
+    // 내려간 지 얼마 안 돼 올라왔으면 걸음이나 흔들림이다. 이번 왕복은 버린다.
+    if (t - sq.startT < T.SQUAT_MIN_MS) return;
+
+    var p = clamp((-sq.vmin - T.SQUAT_VEL_DOWN) / (T.SQUAT_VEL_MAX - T.SQUAT_VEL_DOWN), 0, 1);
+    this._fire('squat', t, p);
   };
 
   /* 좌우 기울기 */

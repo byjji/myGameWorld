@@ -1235,14 +1235,14 @@ function testTuneOverride() {
 
   // 판정 임계값 덮어쓰기
   const before = GP.tuning.SPIKE_ON;
-  T._reset('?tune=SPIKE_ON:10,SQUAT_DOWN_DEG:16');
+  T._reset('?tune=SPIKE_ON:10,SQUAT_MIN_MS:400');
   eq('두 개를 적용한다', T.apply(GP.tuning, ''), 2);
   eq('임계값이 바뀐다', GP.tuning.SPIKE_ON, 10);
-  eq('두 번째도 바뀐다', GP.tuning.SQUAT_DOWN_DEG, 16);
+  eq('두 번째도 바뀐다', GP.tuning.SQUAT_MIN_MS, 400);
   ok('적용됐다고 알린다', T.has() && T.summary().indexOf('2개') >= 0);
   ok('무엇을 바꿨는지 남긴다', T.applied().some(s => s.indexOf('SPIKE_ON') >= 0));
   GP.tuning.SPIKE_ON = before;
-  GP.tuning.SQUAT_DOWN_DEG = 22;
+  GP.tuning.SQUAT_MIN_MS = 300;
 
   // 게임별 값 — 점 앞이 게임 id
   const rc = GP.games.get('ropeclimb');
@@ -1270,12 +1270,12 @@ function testTuneOverride() {
   ok('WEIGHT는 그대로', typeof GP.games.get('blockbreak').tune.WEIGHT === 'object');
 
   // 형식이 깨져도 나머지는 살린다. 현장에서 하나 틀렸다고 전부 날아가면 곤란하다
-  T._reset('?tune=SPIKE_ON:9,망가진값,SQUAT_UP_DEG:8');
+  T._reset('?tune=SPIKE_ON:9,망가진값,SQUAT_MAX_MS:2000');
   const n = T.apply(GP.tuning, '');
   eq('멀쩡한 것만 적용', n, 2);
   ok('깨진 항목을 기록한다', T.rejected().length > 0);
   GP.tuning.SPIKE_ON = before;
-  GP.tuning.SQUAT_UP_DEG = 10;
+  GP.tuning.SQUAT_MAX_MS = 2500;
 
   // 다른 쿼리와 섞여 있어도 찾는다
   T._reset('?dev=1&tune=SPIKE_ON:11&fps=1');

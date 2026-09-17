@@ -519,7 +519,7 @@
 
   function pushWave(s) {
     var d = S.det.debug;
-    S.wave.push({ vert: d.vert, mag: d.mag, pitch: d.pitchRel, roll: d.rollRel, ff: d.freefall });
+    S.wave.push({ vert: d.vert, vel: d.vel, mag: d.mag, pitch: d.pitchRel, roll: d.rollRel, ff: d.freefall });
     if (S.wave.length > 360) S.wave.shift();
   }
 
@@ -544,6 +544,7 @@
     }
 
     line('vert', 2, '#3bff7a');    // 세로 가속도
+    line('vel', 60, '#ff7ad9');    // 세로 속도 (스쿼트 판정 근거). 1m/s = 60px
     line('pitch', 1.5, '#ffd23b'); // pitch
     line('roll', 1.5, '#4b7be3');  // roll
 
@@ -557,6 +558,13 @@
     ctx.strokeStyle = 'rgba(255,255,255,.25)';
     ctx.beginPath();
     ctx.moveTo(0, mid - T.SPIKE_ON * 2); ctx.lineTo(w, mid - T.SPIKE_ON * 2);
+    ctx.stroke();
+
+    // 스쿼트 속도 임계선. 분홍 선이 아래 선을 찍고 위 선을 넘으면 1회.
+    ctx.strokeStyle = 'rgba(255,122,217,.35)';
+    ctx.beginPath();
+    ctx.moveTo(0, mid + T.SQUAT_VEL_DOWN * 60); ctx.lineTo(w, mid + T.SQUAT_VEL_DOWN * 60);
+    ctx.moveTo(0, mid - T.SQUAT_VEL_UP * 60); ctx.lineTo(w, mid - T.SQUAT_VEL_UP * 60);
     ctx.stroke();
 
     global.requestAnimationFrame(drawWave);

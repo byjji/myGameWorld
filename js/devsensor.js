@@ -34,11 +34,14 @@
     { ms: 80, vert: 20 },
     { ms: 300, vert: 0 }
   ];
+  // 스쿼트는 각도가 아니라 세로 왕복이다. 내려가는 가속 - 바닥 제동 - 일어나는 가속 - 위 제동.
   var SQUAT = [
-    { ms: 500, pitchTo: -30 },
-    { ms: 200, pitchTo: -30 },
-    { ms: 500, pitchTo: 0 },
-    { ms: 200, pitchTo: 0 }
+    { ms: 250, vert: -3 },
+    { ms: 250, vert: 3 },
+    { ms: 200, vert: 0 },
+    { ms: 250, vert: 3 },
+    { ms: 250, vert: -3 },
+    { ms: 300, vert: 0 }
   ];
 
   function attach(detector) {

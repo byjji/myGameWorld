@@ -70,7 +70,8 @@
 |---|---|---|
 | `SPIKE_ON` | 12 | |
 | `JUMP_LAG_MS` | 0 | |
-| `SQUAT_DOWN_DEG` | 22 | |
+| `SQUAT_VEL_DOWN` | 0.25 | |
+| `SQUAT_VEL_UP` | 0.25 | |
 | `TILT_LANE_DEG` | 11 | |
 
 어른 기준으로 맞춘 임계값은 조카에게 안 잡힌다. **조카 기준으로 다시 맞춘다.**
